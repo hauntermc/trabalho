@@ -1,0 +1,210 @@
+import tkinter as tk
+from tkinter import messagebox
+from sqlalchemy import create_engine, Column, Integer, String, Float
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+# Configuração do banco de dados SQLite
+DATABASE_URL = "sqlite:///produtos.db"
+engine = create_engine(DATABASE_URL, echo=True)
+Base = declarative_base()
+
+# Definição da classe Produto
+class Produto(Base):
+    __tablename__ = 'produtos'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    codigo = Column(String, unique=True, nullable=False)
+    nome = Column(String, nullable=False)
+    unidade = Column(String, nullable=False)
+    descricao = Column(String, nullable=False)
+    estoqueMinimo = Column(Integer, nullable=False)
+    estoque = Column(Integer, nullable=False)
+    preco = Column(Float, nullable=False)
+
+    def __init__(self, codigo, nome, unidade, descricao, estoqueMinimo, estoque, preco):
+        self.codigo = codigo
+        self.nome = nome
+        self.unidade = unidade
+        self.descricao = descricao
+        self.estoqueMinimo = estoqueMinimo
+        self.estoque = estoque
+        self.preco = preco
+
+    def exibir_informacoes(self):
+        return f"Produto:\n  Código: {self.codigo}\n  Nome: {self.nome}\n  Unidade: {self.unidade}\n  Descrição: {self.descricao}\n  Estoque Mínimo: {self.estoqueMinimo}\n  Estoque Atual: {self.estoque}\n  Preço: R$ {self.preco:.2f}"
+
+# Definição da classe Usuario
+class Usuario(Base):
+    __tablename__ = 'usuarios'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    usuario = Column(String, unique=True, nullable=False)
+    senha = Column(String, nullable=False)
+
+    def __init__(self, usuario, senha):
+        self.usuario = usuario
+        self.senha = senha
+
+# Criação das tabelas no banco de dados
+Base.metadata.create_all(engine)
+Session = sessionmaker(bind=engine)
+
+# Função para registrar um novo usuário no banco de dados
+def registrar_usuario(usuario, senha):
+    session = Session()
+    novo_usuario = Usuario(usuario=usuario, senha=senha)
+    session.add(novo_usuario)
+    session.commit()
+
+# Função para verificar se o usuário está registrado no banco de dados
+def verificar_usuario(usuario, senha):
+    session = Session()
+    usuario_registrado = session.query(Usuario).filter_by(usuario=usuario, senha=senha).first()
+    return usuario_registrado is not None
+
+# Função para inserir um novo produto no banco de dados
+def inserir_produto(codigo, nome, unidade, descricao, estoqueMinimo, estoque, preco):
+    session = Session()
+    novo_produto = Produto(codigo=codigo, nome=nome, unidade=unidade, descricao=descricao, estoqueMinimo=estoqueMinimo, estoque=estoque, preco=preco)
+    session.add(novo_produto)
+    session.commit()
+    messagebox.showinfo("Sucesso", "Produto inserido com sucesso!")
+
+# Função para exibir todos os produtos cadastrados
+def exibir_produtos():
+    session = Session()
+    produtos = session.query(Produto).all()
+
+    if not produtos:
+        messagebox.showinfo("Produtos", "Nenhum produto cadastrado.")
+    else:
+        for produto in produtos:
+            messagebox.showinfo("Produto", produto.exibir_informacoes())
+
+# Função para a tela de registro de usuário
+def tela_registro():
+    def registrar():
+        usuario = entry_usuario.get()
+        senha = entry_senha.get()
+        confirmar_senha = entry_confirmar_senha.get()
+
+        if usuario and senha and confirmar_senha:
+            if senha == confirmar_senha:
+                registrar_usuario(usuario, senha)
+                messagebox.showinfo("Sucesso", "Usuário registrado com sucesso!")
+                top_registro.destroy()
+            else:
+                messagebox.showerror("Erro", "As senhas não coincidem. Por favor, digite novamente.")
+        else:
+            messagebox.showerror("Erro", "Por favor, preencha todos os campos.")
+
+    top_registro = tk.Toplevel(root)
+    top_registro.title("Registro de Usuário")
+
+    tk.Label(top_registro, text='Usuário: ').pack(pady=10)
+    entry_usuario = tk.Entry(top_registro)
+    entry_usuario.pack()
+
+    tk.Label(top_registro, text='Senha: ').pack(pady=10)
+    entry_senha = tk.Entry(top_registro, show='*')
+    entry_senha.pack()
+
+    tk.Label(top_registro, text='Confirmar Senha: ').pack(pady=10)
+    entry_confirmar_senha = tk.Entry(top_registro, show='*')
+    entry_confirmar_senha.pack()
+
+    botao_registrar = tk.Button(top_registro, text='Registrar', command=registrar)
+    botao_registrar.pack(pady=20)
+
+# Função para a tela principal do sistema de estoque
+def tela_principal():
+    top_login = tk.Toplevel(root)
+    top_login.title("Login")
+
+    tk.Label(top_login, text='Usuário: ').pack(pady=10)
+    entry_usuario = tk.Entry(top_login)
+    entry_usuario.pack()
+
+    tk.Label(top_login, text='Senha: ').pack(pady=10)
+    entry_senha = tk.Entry(top_login, show='*')
+    entry_senha.pack()
+
+    def fazer_login():
+        usuario_atual = entry_usuario.get()
+        senha_atual = entry_senha.get()
+
+        if verificar_usuario(usuario_atual, senha_atual):
+            top_login.destroy()
+            mostrar_interface_principal(usuario_atual, senha_atual)
+        else:
+            messagebox.showerror("Erro", "Usuário ou senha incorretos.")
+
+    btn_login = tk.Button(top_login, text="Login", command=fazer_login)
+    btn_login.pack(pady=20)
+
+# Função para mostrar a interface principal após o login
+def mostrar_interface_principal(usuario, senha):
+    top_estoque = tk.Toplevel(root)
+    top_estoque.title("Sistema de Estoque")
+
+    btn_inserir = tk.Button(top_estoque, text="Inserir Novo Produto", command=tela_inserir_produto)
+    btn_inserir.pack(pady=10)
+
+    btn_exibir = tk.Button(top_estoque, text="Exibir Produtos Cadastrados", command=exibir_produtos)
+    btn_exibir.pack(pady=10)
+
+# Função para a tela de inserção de novo produto
+def tela_inserir_produto():
+    top_inserir = tk.Toplevel(root)
+    top_inserir.title("Inserir Novo Produto")
+
+    tk.Label(top_inserir, text="Código: ").grid(row=0, column=0)
+    entry_codigo = tk.Entry(top_inserir)
+    entry_codigo.grid(row=0, column=1)
+
+    tk.Label(top_inserir, text="Nome: ").grid(row=1, column=0)
+    entry_nome = tk.Entry(top_inserir)
+    entry_nome.grid(row=1, column=1)
+
+    tk.Label(top_inserir, text="Unidade: ").grid(row=2, column=0)
+    entry_unidade = tk.Entry(top_inserir)
+    entry_unidade.grid(row=2, column=1)
+
+    tk.Label(top_inserir, text="Descrição: ").grid(row=3, column=0)
+    entry_descricao = tk.Entry(top_inserir)
+    entry_descricao.grid(row=3, column=1)
+
+    tk.Label(top_inserir, text="Estoque Mínimo: ").grid(row=4, column=0)
+    entry_estoque_minimo = tk.Entry(top_inserir)
+    entry_estoque_minimo.grid(row=4, column=1)
+
+    tk.Label(top_inserir, text="Estoque Atual: ").grid(row=5, column=0)
+    entry_estoque_atual = tk.Entry(top_inserir)
+    entry_estoque_atual.grid(row=5, column=1)
+
+    tk.Label(top_inserir, text="Preço: ").grid(row=6, column=0)
+    entry_preco = tk.Entry(top_inserir)
+    entry_preco.grid(row=6, column=1)
+
+    btn_salvar = tk.Button(top_inserir, text="Salvar", command=lambda: inserir_produto(entry_codigo.get(),
+                                                                                     entry_nome.get(),
+                                                                                     entry_unidade.get(),
+                                                                                     entry_descricao.get(),
+                                                                                     entry_estoque_minimo.get(),
+                                                                                     entry_estoque_atual.get(),
+                                                                                     entry_preco.get()))
+    btn_salvar.grid(row=7, column=0, columnspan=2, pady=10)
+
+# Configurações da janela principal
+root = tk.Tk()
+root.title("Sistema de Estoque")
+
+# Botões na janela principal
+btn_registro = tk.Button(root, text="Registrar Usuário", command=tela_registro)
+btn_registro.pack(pady=10)
+
+btn_login = tk.Button(root, text="Login", command=tela_principal)
+btn_login.pack(pady=10)
+
+# Iniciar loop principal
+root.mainloop()
