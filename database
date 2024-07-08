@@ -1,0 +1,13 @@
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from classes import Base, entrada_material
+
+
+engine = create_engine('sqlite:///bancodedados.db')
+#Session = sessionmaker(bind=engine)
+def get_session():
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+
+Base.metadata.create_all(engine)
