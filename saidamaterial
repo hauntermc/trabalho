@@ -1,0 +1,13 @@
+from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy.ext.declarative import declarative_base
+
+Base = declarative_base()
+
+class saida_material(Base):
+    __tablename__ = 'Saida de Material'
+
+    codigo = Column(String, primary_key=True)
+    ordem_servico = Column(String, nullable=False)
+    local = Column(String, nullable=False)
+    patrimonio = Column(String)
+    quantidade = Column(Integer)
