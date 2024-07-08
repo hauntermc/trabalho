@@ -1,0 +1,114 @@
+from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QDialog, QLabel, QLineEdit, QMessageBox
+from sqlalchemy.exc import SQLAlchemyError
+from database import get_session
+from classes import entrada_material
+
+
+class InserirProdutoDialog(QDialog):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("Registrar Produto")
+
+        layout = QVBoxLayout()
+
+        self.label_codigo = QLabel("Código:", self)
+        layout.addWidget(self.label_codigo)
+        self.input_codigo = QLineEdit(self)
+        layout.addWidget(self.input_codigo)
+
+        self.label_nome = QLabel("Nome:", self)
+        layout.addWidget(self.label_nome)
+        self.input_nome = QLineEdit(self)
+        layout.addWidget(self.input_nome)
+
+        self.label_unidade = QLabel("Unidade", self)
+        layout.addWidget(self.label_unidade)
+        self.input_unidade = QLineEdit(self)
+        layout.addWidget(self.input_unidade)
+
+        self.label_preco = QLabel("Preço:", self)
+        layout.addWidget(self.label_preco)
+        self.input_preco = QLineEdit(self)
+        layout.addWidget(self.input_preco)
+
+        self.label_estoque_minimo = QLabel("Estoque Mínimo:", self)
+        layout.addWidget(self.label_estoque_minimo)
+        self.input_estoque_minimo = QLineEdit(self)
+        layout.addWidget(self.input_estoque_minimo)
+
+        self.label_estoque_atual = QLabel("Estoque Atual:", self)
+        layout.addWidget(self.label_estoque_atual)
+        self.input_estoque_atual = QLineEdit(self)
+        layout.addWidget(self.input_estoque_atual)
+
+        self.label_patrimonio = QLabel("Patrimonio: ", self)
+        layout.addWidget(self.label_patrimonio)
+        self.input_patrimonio = QLineEdit(self)
+        layout.addWidget(self.input_patrimonio)
+
+        self.btn_inserir = QPushButton("Inserir", self)
+        self.btn_inserir.clicked.connect(self.inserir_produto)
+        layout.addWidget(self.btn_inserir)
+        self.setLayout(layout)
+
+    def inserir_produto(self):
+        codigo = self.input_codigo.text()
+        nome = self.input_nome.text()
+        unidade = self.input_unidade.text()
+        preco = self.input_preco.text()
+        estoque_minimo = self.input_estoque_minimo.text()
+        estoque_atual = self.input_estoque_atual.text()
+        patrimonio = self.input_patrimonio.text()
+
+        # Verificar se os campos numéricos são válidos
+        try:
+            preco = float(preco)
+            estoque_minimo = int(estoque_minimo)
+            estoque_atual = int(estoque_atual)
+        except ValueError:
+            QMessageBox.warning(self, "Erro de Validação", "Os campos de preço, estoque mínimo e estoque atual devem ser números.")
+            return
+
+        novo_produto = entrada_material(
+            codigo=codigo, nome=nome, unidade=unidade, descricao='Descrição', estoque_minimo=estoque_minimo, estoque_atual=estoque_atual, preco=preco, patrimonio=patrimonio
+        )
+        session = get_session()
+        try:
+            session.add(novo_produto)
+            session.commit()
+            QMessageBox.information(self, "Sucesso", "Produto inserido com sucesso!")
+            print(f"Produto inserido: Código={codigo}, Nome={nome}, Unidade={unidade}, Preço={preco}, Estoque Mínimo={estoque_minimo}, Estoque Atual={estoque_atual}, Patrimonio={patrimonio}")
+        except SQLAlchemyError as e:
+            session.rollback()
+            QMessageBox.critical(self, "Erro", f"Erro ao inserir produto: {str(e)}")
+            print(f"Erro ao inserir produto: {str(e)}")
+        finally:
+            session.close()
+
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Sistema de Controle de Estoque")
+        self.setGeometry(100, 100, 800, 600)
+
+        central_widget = QWidget(self)
+        self.setCentralWidget(central_widget)
+
+        layout = QVBoxLayout(central_widget)
+
+        self.btn_inserir = QPushButton("Inserir Produto", self)
+        self.btn_inserir.clicked.connect(self.abrir_inserir_produto)
+        layout.addWidget(self.btn_inserir)
+
+    def abrir_inserir_produto(self):
+        dialog = InserirProdutoDialog()
+        dialog.exec_()
+
+
+if __name__ == "__main__":
+    app = QApplication([])
+    window = MainWindow()
+    window.show()
+    app.exec_()
