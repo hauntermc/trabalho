@@ -5,6 +5,8 @@ import hashlib
 class Database:
     def __init__(self, db_file='users.db'):
         self.db_file = db_file
+        self.conn = None
+        self.cursor = None
         self.create_connection()
         self.create_table()
 
@@ -29,15 +31,21 @@ class Database:
             self.conn.commit()
         except sqlite3.IntegrityError:
             raise ValueError('O usuário já existe.')
+        finally:
+            self.close_connection()
 
     def login_user(self, username, password):
         password_hash = hashlib.sha256(password.encode()).hexdigest()
-        self.cursor.execute('SELECT * FROM users WHERE username = ? AND password_hash = ?', (username, password_hash))
-        user = self.cursor.fetchone()
-        if user:
-            return True
-        else:
-            return False
+        try:
 
+            self.cursor.execute('SELECT * FROM users WHERE username = ? AND password_hash = ?', (username, password_hash))
+            user = self.cursor.fetchone()
+            if user:
+                return True
+            else:
+                return False
+        finally:
+            self.close_connection()
     def close_connection(self):
-        self.conn.close()
+        if self.conn:
+            self.conn.close()

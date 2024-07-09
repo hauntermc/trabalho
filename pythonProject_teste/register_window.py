@@ -1,15 +1,14 @@
-# register_window.py
 from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QDialog, QLineEdit, QPushButton, QLabel, QVBoxLayout, QMessageBox
-from database import Database
+from PyQt5.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QLabel, QMessageBox
+from sqlalchemy_backend import register_user
+
 
 class RegisterWindow(QDialog):
-    register_signal = pyqtSignal(str)  # Sinal para registrar usuário
+    register_signal = pyqtSignal(str)
 
-    def __init__(self, parent=None, backend=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Registrar')
-        self.backend = backend if backend else Database()  # Instância do backend
         self.initUI()
 
     def initUI(self):
@@ -35,31 +34,30 @@ class RegisterWindow(QDialog):
         self.setLayout(vbox)
 
         register_button.clicked.connect(self.register)
-        cancel_button.clicked.connect(self.cancel_register)
+        cancel_button.clicked.connect(self.reject)
 
     def register(self):
         username = self.username_input.text()
         password = self.password_input.text()
         confirm_password = self.confirm_password_input.text()
 
-        if not username or not password or not confirm_password:
-            QMessageBox.warning(self, 'Erro de Registro', 'Por favor, preencha todos os campos.')
+        if not username or not password:
+            QMessageBox.warning(self, 'Erro de registro', 'Por favor, preencha todos os campos')
             return
-
         if password != confirm_password:
-            QMessageBox.warning(self, 'Erro de Registro', 'As senhas não coincidem.')
+            QMessageBox.warning(self, 'Erro de registro', 'As senhas não coincidem.')
             return
 
         try:
-            self.backend.register_user(username, password)
-            self.register_signal.emit(username)  # Emitir sinal com o nome de usuário registrado
-            QMessageBox.information(self, 'Registro', f'Usuário "{username}" registrado com sucesso!')
-            self.close()  # Fecha a janela de registro
+            register_user(username, password, confirm_password)
+            self.register_signal.emit(username)
+            #QMessageBox.information(self, 'Registro', f'Usuário "{username}" registrado com sucesso!')
+            self.accept()
+            self.parent().show()
         except ValueError as e:
             QMessageBox.warning(self, 'Erro de Registro', str(e))
 
+
     def cancel_register(self):
-        self.reject()  # Rejeita (fecha) a janela de registro
-        parent = self.parent()
-        if parent:
-            parent.show()  # Mostra a janela de login ao cancelar o registro
+        self.reject()
+        self.parent().show()

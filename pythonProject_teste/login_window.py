@@ -1,14 +1,12 @@
-# login_window.py
-from PyQt5.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QMessageBox
-from PyQt5.QtCore import pyqtSlot
-from database import Database
+from PyQt5.QtWidgets import QDialog, QLineEdit, QPushButton, QVBoxLayout, QLabel, QMessageBox
+from sqlalchemy_backend import login_user
+from main_window import MainWindow
 from register_window import RegisterWindow
 
 class LoginWindow(QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Login')
-        self.backend = Database()  # Instância do banco de dados
         self.initUI()
 
     def initUI(self):
@@ -20,7 +18,9 @@ class LoginWindow(QDialog):
         register_button = QPushButton('Registrar')
 
         vbox = QVBoxLayout()
+        vbox.addWidget(QLabel('Usuário:'))
         vbox.addWidget(self.username_input)
+        vbox.addWidget(QLabel('Senha:'))
         vbox.addWidget(self.password_input)
         vbox.addWidget(login_button)
         vbox.addWidget(register_button)
@@ -34,19 +34,15 @@ class LoginWindow(QDialog):
         username = self.username_input.text()
         password = self.password_input.text()
 
-        if self.backend.login_user(username, password):
-            QMessageBox.information(self, 'Login', 'Login bem-sucedido!')
-            self.accept()  # Fecha a janela de login
+        if login_user(username, password):
+            self.accept()
+            self.main_window = MainWindow(username)
+            self.main_window.show()
         else:
-            QMessageBox.warning(self, 'Erro de Login', 'Usuário ou senha incorretos.')
+            QMessageBox.warning(self, 'Erro de Login', 'Credenciais inválidas.')
 
     def open_register_window(self):
-        self.hide()  # Esconde a janela de login
-        register_window = RegisterWindow(self, self.backend)  # Passa o backend para o RegisterWindow
-        register_window.register_signal.connect(self.registered)  # Conecta ao slot registered
-        register_window.exec_()  # Executa a janela de registro
-
-    @pyqtSlot(str)
-    def registered(self, username):
-        QMessageBox.information(self, 'Registro', f'Usuário "{username}" registrado com sucesso!')
-        self.show()  # Mostra a janela de login após o registro
+        self.register_window = RegisterWindow()
+        self.hide()
+        self.register_window.exec_()
+        self.show()
