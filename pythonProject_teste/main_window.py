@@ -1,10 +1,14 @@
-from PyQt5.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QAction, QApplication, QDesktopWidget
+from PyQt5.QtWidgets import QMainWindow, QLabel, QVBoxLayout, QWidget, QAction, QApplication, QDesktopWidget, \
+    QPushButton, QMessageBox, QHBoxLayout, QSizePolicy
 from PyQt5.QtCore import Qt
 
 from main_window_button import MainWindowButtons
 from register_product_window import RegisterProductWindow
 from register_tecnico_window import RegisterTecnicoWindow
 from register_fornecedores_window import RegisterFornecedorWindow
+from print_handler import PrintHandler
+from show_tecnico_window import ShowTecnicoWindow
+from show_products_window import ShowProductsWindow
 
 class MainWindow(QMainWindow):
     def __init__(self, username):
@@ -13,6 +17,7 @@ class MainWindow(QMainWindow):
         self.initUI(username)
 
     def initUI(self, username):
+        # Saudação ao usuário
         label = QLabel(f'Bem-Vindo, {username}!', self)
         label.setAlignment(Qt.AlignCenter)  # Centraliza o texto horizontalmente
         label.setStyleSheet('font-size: 24px;')  # Define o tamanho da fonte
@@ -20,15 +25,68 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         layout.addWidget(label)
 
+        # Botões para abrir as janelas de registro
+        button_actions = MainWindowButtons(self)
+
+        register_produto_button = QPushButton('Registrar Produto')
+        register_produto_button.clicked.connect(self.open_register_product_window)
+        layout.addWidget(register_produto_button)
+
+        register_tecnico_button = QPushButton('Registrar Técnico')
+        register_tecnico_button.clicked.connect(self.open_register_tecnico_window)
+        layout.addWidget(register_tecnico_button)
+
+        register_fornecedor_button = QPushButton('Registrar Fornecedor(a)')
+        register_fornecedor_button.clicked.connect(self.open_register_fornecedor_window)
+        layout.addWidget(register_fornecedor_button)
+
+        show_products_button = QPushButton('Mostrar Produtos Registrados')
+        show_products_button.clicked.connect(self.show_products)
+        layout.addWidget(show_products_button)
+
+        show_tecnico_button = QPushButton('Mostrar Técnicos Registrados')
+        show_tecnico_button.clicked.connect(self.show_tecnico)
+        layout.addWidget(show_tecnico_button)
+
         central_widget = QWidget()
         central_widget.setLayout(layout)
         self.setCentralWidget(central_widget)
 
-        # Configura a barra de menu
-        self.menu_bar()
+        # Menu de ações
+        menu_bar = self.menuBar()
+
+        # Ação de menu para imprimir
+        print_action = QAction('Imprimir', self)
+        print_action.triggered.connect(self.print_report)
+        menu_bar.addAction(print_action)
+
+        # Adicionar widget vazio para empurrar o botão de logout para a direita
+        empty_widget = QWidget(self)
+        empty_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        menu_bar.setCornerWidget(empty_widget, Qt.TopLeftCorner)
+
+        # Botão de logout na barra de menu
+        logout_button = QPushButton('Logout', self)
+        logout_button.clicked.connect(self.confirm_logout)
+        logout_button.setStyleSheet('padding: 5px 10px;')  # Customize a aparência do botão se necessário
+        menu_bar.setCornerWidget(logout_button, Qt.TopRightCorner)
 
         self.setGeometry(0, 0, 800, 600)
         self.center()
+
+    def confirm_logout(self):
+        # Exibe uma mensagem de confirmação para o logout
+        reply = QMessageBox.question(self, 'Confirmar Logout', 'Tem certeza que quer deslogar?',
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.logout()
+
+    def logout(self):
+        # Fecha a janela atual e abre a janela de login
+        self.close()
+        from login_window import LoginWindow
+        self.login_window = LoginWindow()
+        self.login_window.show()
 
     def center(self):
         # Centraliza a janela na tela
@@ -37,41 +95,41 @@ class MainWindow(QMainWindow):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
-    def menu_bar(self):
-        button_actions = MainWindowButtons(self)
-
-        register_produto_action = QAction('Registrar Produto', self)
-        register_produto_action.triggered.connect(self.open_register_product_window)
-        self.menuBar().addAction(register_produto_action)
-
-        register_tecnico_action = QAction('Registrar Técnico', self)
-        register_tecnico_action.triggered.connect(self.open_register_tecnico_window)
-        self.menuBar().addAction(register_tecnico_action)
-
-        register_fornecedor_action = QAction('Registrar Fornecedor(a)', self)
-        if register_fornecedor_action is not None:
-            register_fornecedor_action.triggered.connect(self.open_register_fornecedor_window)
-        self.menuBar().addAction(register_fornecedor_action)
-
-        logout_action = QAction('Logout', self)
-        logout_action.triggered.connect(self.logout)
-        self.menuBar().addAction(logout_action)
-
     def open_register_tecnico_window(self):
-        register_tecnico_window = RegisterTecnicoWindow()
-        register_tecnico_window.exec_()
+        try:
+            register_tecnico_window = RegisterTecnicoWindow()
+            register_tecnico_window.exec_()
+        except Exception as e:
+            print(f'Erro ao abrir janela de registro de técnico: {e}')
 
     def open_register_product_window(self):
-        register_product_window = RegisterProductWindow()
-        register_product_window.exec_()
+        try:
+            register_product_window = RegisterProductWindow()
+            register_product_window.exec_()
+        except Exception as e:
+            print(f'Erro ao abrir janela de registro de produto: {e}')
 
     def open_register_fornecedor_window(self):
-        register_fornecedor_window = RegisterFornecedorWindow()
-        register_fornecedor_window.exec_()
+        try:
+            register_fornecedor_window = RegisterFornecedorWindow()
+            register_fornecedor_window.exec_()
+        except Exception as e:
+            print(f'Erro ao abrir janela de registro de fornecedor: {e}')
 
-    def logout(self):
-        self.close()
-        from login_window import LoginWindow
-        self.login_window = LoginWindow()
-        self.login_window.show()
+    def print_report(self):
+        print_handler = PrintHandler(self)
+        print_handler.print_report()
 
+    def show_products(self):
+        try:
+            show_products_window = ShowProductsWindow()
+            show_products_window.exec_()
+        except Exception as e:
+            QMessageBox.warning(self, f'{e}')
+
+    def show_tecnico(self):
+        try:
+            show_tecnico_window = ShowTecnicoWindow()
+            show_tecnico_window.exec_()
+        except Exception as e:
+            QMessageBox.warning(self, f'{e}')

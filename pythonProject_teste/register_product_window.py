@@ -1,8 +1,7 @@
 from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout, QMessageBox
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy_backend import engine  # Importe seu engine SQLAlchemy aqui
-from produto_database import Produto, engine
+from produto_database import Produto, engine_produto
 
 class RegisterProductWindow(QDialog):
     def __init__(self):
@@ -11,28 +10,31 @@ class RegisterProductWindow(QDialog):
         self.initUI()
 
     def initUI(self):
-        label = QLabel('Informações do Produto', self)
-
-        self.product_name_input = QLineEdit(self)
-        self.product_name_input.setPlaceholderText('Nome do Produto')
-
-        self.product_price_input = QLineEdit(self)
-        self.product_price_input.setPlaceholderText('Preço do Produto')
-
-        register_button = QPushButton('Registrar', self)
-        register_button.clicked.connect(self.register_product)
-
         layout = QVBoxLayout()
-        layout.addWidget(label)
-        layout.addWidget(self.product_name_input)
-        layout.addWidget(self.product_price_input)
-        layout.addWidget(register_button)
+
+        # Labels e campos de entrada
+        label_nome = QLabel('Nome:')
+        self.input_nome = QLineEdit()
+
+        label_preco = QLabel('Preço:')
+        self.input_preco = QLineEdit()
+
+        # Adiciona os widgets ao layout vertical
+        layout.addWidget(label_nome)
+        layout.addWidget(self.input_nome)
+        layout.addWidget(label_preco)
+        layout.addWidget(self.input_preco)
+
+        # Botão para confirmar o registro
+        btn_confirmar = QPushButton('Registrar')
+        btn_confirmar.clicked.connect(self.register_product)
+        layout.addWidget(btn_confirmar)
 
         self.setLayout(layout)
 
     def register_product(self):
-        product_name = self.product_name_input.text()
-        product_price_text = self.product_price_input.text()
+        product_name = self.input_nome.text()
+        product_price_text = self.input_preco.text()
 
         try:
             product_price = float(product_price_text)  # Converte para float
@@ -41,7 +43,7 @@ class RegisterProductWindow(QDialog):
             return
 
         # Cria uma sessão do SQLAlchemy
-        Session = sessionmaker(bind=engine)
+        Session = sessionmaker(bind=engine_produto)
         session = Session()
 
         try:

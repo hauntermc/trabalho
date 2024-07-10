@@ -34,7 +34,7 @@ class RegisterWindow(QDialog):
         self.setLayout(vbox)
 
         register_button.clicked.connect(self.register)
-        cancel_button.clicked.connect(self.reject)
+        cancel_button.clicked.connect(self.cancel_register)
 
     def register(self):
         username = self.username_input.text()
@@ -42,7 +42,7 @@ class RegisterWindow(QDialog):
         confirm_password = self.confirm_password_input.text()
 
         if not username or not password:
-            QMessageBox.warning(self, 'Erro de registro', 'Por favor, preencha todos os campos')
+            QMessageBox.warning(self, 'Erro de registro', 'Por favor, preencha todos os campos.')
             return
         if password != confirm_password:
             QMessageBox.warning(self, 'Erro de registro', 'As senhas não coincidem.')
@@ -51,13 +51,12 @@ class RegisterWindow(QDialog):
         try:
             register_user(username, password, confirm_password)
             self.register_signal.emit(username)
-            #QMessageBox.information(self, 'Registro', f'Usuário "{username}" registrado com sucesso!')
+            QMessageBox.information(self, 'Registro', f'Usuário "{username}" registrado com sucesso!')
             self.accept()
-            self.parent().show()
         except ValueError as e:
             QMessageBox.warning(self, 'Erro de Registro', str(e))
-
+        except Exception as e:
+            QMessageBox.critical(self, 'Erro', f'Ocorreu um erro inesperado: {str(e)}')
 
     def cancel_register(self):
         self.reject()
-        self.parent().show()
