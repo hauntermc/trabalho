@@ -9,6 +9,8 @@ from register_fornecedores_window import RegisterFornecedorWindow
 from print_handler import PrintHandler
 from show_tecnico_window import ShowTecnicoWindow
 from show_products_window import ShowProductsWindow
+from show_fornecedor_window import ShowFornecedores
+from saida_material_window import SaidaMaterial
 
 class MainWindow(QMainWindow):
     def __init__(self, username):
@@ -47,6 +49,15 @@ class MainWindow(QMainWindow):
         show_tecnico_button = QPushButton('Mostrar Técnicos Registrados')
         show_tecnico_button.clicked.connect(self.show_tecnico)
         layout.addWidget(show_tecnico_button)
+
+        show_fornecedor_button = QPushButton('Mostrar Fornecedores Registradors')
+        show_fornecedor_button.clicked.connect(self.show_fornecedor)
+        layout.addWidget(show_fornecedor_button)
+
+        # Botão para abrir a janela de saída de material
+        saida_material_button = QPushButton('Registrar Saída de Material')
+        saida_material_button.clicked.connect(self.open_saida_material_window)
+        layout.addWidget(saida_material_button)
 
         central_widget = QWidget()
         central_widget.setLayout(layout)
@@ -133,3 +144,18 @@ class MainWindow(QMainWindow):
             show_tecnico_window.exec_()
         except Exception as e:
             QMessageBox.warning(self, f'{e}')
+
+    def show_fornecedor(self):
+        try:
+            show_fornecedor_window = ShowFornecedores()
+            show_fornecedor_window.exec_()
+        except Exception as e:
+            error_message = f'Ocorreu um erro ao abrir a janela de fornecedores:\n\n{str(e)}'
+            QMessageBox.critical(self, 'Erro', error_message)
+
+    def open_saida_material_window(self):
+        try:
+            saida_material_window = SaidaMaterial()
+            saida_material_window.exec_()
+        except Exception as e:
+            print(f'Erro ao abrir janela de saída de material: {e}')

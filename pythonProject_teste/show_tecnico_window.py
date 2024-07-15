@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QMessageBox
+from PyQt5.QtWidgets import QLineEdit, QPushButton, QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QMessageBox
 from sqlalchemy.orm import sessionmaker
 from tecnico_database import engine_tecnico, Tecnico  # Importe seu engine SQLAlchemy e modelo Tecnico
 
@@ -11,6 +11,14 @@ class ShowTecnicoWindow(QDialog):
     def initUI(self):
         layout = QVBoxLayout()
 
+        self.search_input = QLineEdit(self)
+        self.search_input.setPlaceholderText('Digite o nome do Técnico...')
+        layout.addWidget(self.search_input)
+
+        self.search_button = QPushButton('Buscar', self)
+        self.search_button.clicked.connect(self.load_data)
+        layout.addWidget(self.search_button)
+
         self.table = QTableWidget()
         layout.addWidget(self.table)
 
@@ -22,7 +30,14 @@ class ShowTecnicoWindow(QDialog):
         session = Session()
 
         try:
-            tecnicos = session.query(Tecnico).all()
+            search_term = self.search_input.text()
+            query = session.query(Tecnico)
+
+            if search_term:
+                query = query.filter(Tecnico.nome.like(f'%{search_term}%'))
+
+            tecnicos = query.all()
+
             self.table.setRowCount(len(tecnicos))
             self.table.setColumnCount(3)  # Ajuste o número de colunas conforme necessário
             self.table.setHorizontalHeaderLabels(['Matrícula', 'Nome', 'Telefone'])
@@ -31,7 +46,9 @@ class ShowTecnicoWindow(QDialog):
                 self.table.setItem(row, 0, QTableWidgetItem(tecnico.matricula))
                 self.table.setItem(row, 1, QTableWidgetItem(tecnico.nome))
                 self.table.setItem(row, 2, QTableWidgetItem(tecnico.telefone))
+
         except Exception as e:
             QMessageBox.critical(self, 'Erro', f'Ocorreu um erro ao carregar os técnicos: {str(e)}')
+
         finally:
             session.close()

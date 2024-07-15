@@ -11,28 +11,44 @@ class RegisterFornecedorWindow(QDialog):
         self.initUI()
 
     def initUI(self):
-        label = QLabel('Informações do Fornecedor', self)
-
-        self.fornecedor_nome_input = QLineEdit(self)
-        self.fornecedor_nome_input.setPlaceholderText('Nome do Fornecedor')
-
-        self.fornecedor_cnpj_input = QLineEdit(self)
-        self.fornecedor_cnpj_input.setPlaceholderText('CNPJ do Fornecedor')
-
-        register_button = QPushButton('Registrar', self)
-        register_button.clicked.connect(self.register_fornecedor)
-
         layout = QVBoxLayout()
-        layout.addWidget(label)
-        layout.addWidget(self.fornecedor_nome_input)
-        layout.addWidget(self.fornecedor_cnpj_input)
-        layout.addWidget(register_button)
+
+        label_fornecedor_nome = QLabel('Nome do Fornecedor: ')
+        self.input_fornecedor_nome = QLineEdit()
+
+        label_fornecedor_cnpj = QLabel('CNPJ do Fornecedor: ')
+        self.input_fornecedor_cnpj = QLineEdit()
+
+        layout.addWidget(label_fornecedor_nome)
+        layout.addWidget(self.input_fornecedor_nome)
+        layout.addWidget(label_fornecedor_cnpj)
+        layout.addWidget(self.input_fornecedor_cnpj)
+
+        btn_confirmar = QPushButton('Registrar')
+        btn_confirmar.clicked.connect(self.register_fornecedor)
+        layout.addWidget(btn_confirmar)
+        #label = QLabel('Informações do Fornecedor', self)
+
+        #self.fornecedor_nome_input = QLineEdit(self)
+        #self.fornecedor_nome_input.setPlaceholderText('Nome do Fornecedor')
+
+        #self.fornecedor_cnpj_input = QLineEdit(self)
+        #self.fornecedor_cnpj_input.setPlaceholderText('CNPJ do Fornecedor')
+
+        #register_button = QPushButton('Registrar', self)
+        #register_button.clicked.connect(self.register_fornecedor)
+
+        #layout = QVBoxLayout()
+        #layout.addWidget(label)
+       # layout.addWidget(self.fornecedor_nome_input)
+        #layout.addWidget(self.fornecedor_cnpj_input)
+        #layout.addWidget(register_button)
 
         self.setLayout(layout)
 
     def register_fornecedor(self):
-        fornecedor_nome = self.fornecedor_nome_input.text()
-        fornecedor_cnpj = self.fornecedor_cnpj_input.text()
+        fornecedor_nome = self.input_fornecedor_nome.text()
+        fornecedor_cnpj = self.input_fornecedor_cnpj.text()
 
         if not fornecedor_nome or not fornecedor_cnpj:
             QMessageBox.warning(self, 'Erro de Registro', 'Por favor, preencha todos os campos.')
