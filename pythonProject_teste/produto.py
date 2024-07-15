@@ -1,25 +1,72 @@
-# produto.py
+from sqlalchemy import create_engine, Column, Integer, String, Float, Date, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship, sessionmaker
+from datetime import date
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from estoque_database import Base, Produto, Estoque
+Base = declarative_base()
 
-# Conecta ao banco de dados
-engine_estoque = create_engine('sqlite:///estoque_database.db')
-Base.metadata.create_all(engine_estoque)
+class Produto(Base):
+    __tablename__ = 'produtos'
 
-# Cria uma sessão
-Session = sessionmaker(bind=engine_estoque)
-session = Session()
+    id = Column(Integer, primary_key=True)
+    nome = Column(String, nullable=False)
+    preco = Column(Float, nullable=False)
+    nota_fiscal = Column(String, nullable=True)
+    quantidade = Column(Integer, nullable=True)
+    fornecedor = Column(String, nullable=True)
+    data = Column(Date, nullable=True)
 
+class Estoque(Base):
+    __tablename__ = 'estoque'
+
+    id = Column(Integer, primary_key=True)
+    produto_id = Column(Integer, ForeignKey('produtos.id'))
+    quantidade = Column(Integer, nullable=False)
+    produto = relationship("Produto")
+
+class SaidaMaterial(Base):
+    __tablename__ = 'saida_material'
+
+    id = Column(Integer, primary_key=True)
+    tecnico = Column(String, nullable=False)
+    tipo_saida = Column(String, nullable=False)
+    ordem_servico = Column(String, nullable=False)
+    data_ordem = Column(Date, nullable=False)
+    local_servico = Column(String, nullable=False)
+    patrimonio = Column(String, nullable=False)
+    quantidade = Column(Integer, nullable=False)
+    produto_id = Column(Integer, ForeignKey('produtos.id'))
+    produto = relationship("Produto")
+
+# Conectar ao banco de dados e criar tabelas se não existirem
+def criar_banco_dados():
+    engine = create_engine('sqlite:///estoque_database.db')
+    Base.metadata.create_all(engine)
+    return engine
+
+# Iniciar uma sessão do banco de dados
+def iniciar_sessao(engine):
+    Session = sessionmaker(bind=engine)
+    return Session()
+
+# Função para registrar um novo produto e atualizar o estoque
 def registrar_produto(nome, preco, quantidade_inicial):
+    engine = criar_banco_dados()
+    session = iniciar_sessao(engine)
+
     try:
-        # Cria e adiciona o novo produto
+        # Verificar se o produto já existe
+        produto_existente = session.query(Produto).filter_by(nome=nome).first()
+        if produto_existente:
+            print(f"Produto {nome} já está registrado com ID {produto_existente.id}.")
+            return
+
+        # Criar e adicionar o novo produto
         novo_produto = Produto(nome=nome, preco=preco)
         session.add(novo_produto)
         session.commit()  # Commit para garantir que o produto tenha um ID
 
-        # Adiciona o produto ao estoque
+        # Adicionar o produto ao estoque
         novo_estoque = Estoque(produto_id=novo_produto.id, quantidade=quantidade_inicial)
         session.add(novo_estoque)
         session.commit()
@@ -28,6 +75,49 @@ def registrar_produto(nome, preco, quantidade_inicial):
 
     except Exception as e:
         print(f"Erro ao registrar produto: {e}")
+        session.rollback()
+
+    finally:
+        session.close()
+
+# Função para registrar a saída de material
+def registrar_saida_material(produto_id, tecnico, tipo_saida, ordem_servico, data_ordem, local_servico, patrimonio, quantidade):
+    engine = criar_banco_dados()
+    session = iniciar_sessao(engine)
+
+    try:
+        # Verificar se o produto existe no estoque e se a quantidade é suficiente
+        estoque = session.query(Estoque).filter_by(produto_id=produto_id).first()
+        if estoque is None:
+            print("Produto não encontrado no estoque.")
+            return
+
+        if estoque.quantidade < quantidade:
+            print("Quantidade insuficiente no estoque.")
+            return
+
+        # Atualizar a quantidade no estoque
+        estoque.quantidade -= quantidade
+        session.commit()
+
+        # Registrar a saída de material
+        saida_material = SaidaMaterial(
+            produto_id=produto_id,
+            tecnico=tecnico,
+            tipo_saida=tipo_saida,
+            ordem_servico=ordem_servico,
+            data_ordem=data_ordem,
+            local_servico=local_servico,
+            patrimonio=patrimonio,
+            quantidade=quantidade
+        )
+        session.add(saida_material)
+        session.commit()
+
+        print("Saída de material registrada com sucesso.")
+
+    except Exception as e:
+        print(f"Erro ao registrar saída de material: {e}")
         session.rollback()
 
     finally:

@@ -3,7 +3,8 @@ from PyQt5.QtCore import QRegExp
 from PyQt5.QtGui import QRegExpValidator, QKeyEvent
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
-from produto_database import Produto, Estoque, engine_produto
+from produto_database import Produto, criar_banco_dados, iniciar_sessao
+from produto import Estoque
 import datetime
 
 class DateLineEdit(QLineEdit):
@@ -91,7 +92,7 @@ class RegisterProductWindow(QDialog):
             product_quantidade = int(product_quantidade_text)
 
             # Cria uma sessão do SQLAlchemy
-            Session = sessionmaker(bind=engine_produto)
+            Session = sessionmaker(bind=iniciar_sessao())
             session = Session()
 
             try:
@@ -129,3 +130,33 @@ class RegisterProductWindow(QDialog):
         except ValueError:
             QMessageBox.warning(self, 'Erro de Registro', 'Por favor, insira um preço válido.')
             return
+
+    def registrar_produto(nome, preco, quantidade_inicial):
+        engine = criar_banco_dados()
+        session = iniciar_sessao(engine)
+
+        try:
+            # Verificar se o produto já existe
+            produto_existente = session.query(Produto).filter_by(nome=nome).first()
+            if produto_existente:
+                print(f"Produto {nome} já está registrado com ID {produto_existente.id}.")
+                return
+
+            # Criar e adicionar o novo produto
+            novo_produto = Produto(nome=nome, preco=preco)
+            session.add(novo_produto)
+            session.commit()  # Commit para garantir que o produto tenha um ID
+
+            # Adicionar o produto ao estoque
+            novo_estoque = Estoque(produto_id=novo_produto.id, quantidade=quantidade_inicial)
+            session.add(novo_estoque)
+            session.commit()
+
+            print(f"Produto {nome} registrado com sucesso com quantidade inicial {quantidade_inicial}!")
+
+        except Exception as e:
+            print(f"Erro ao registrar produto: {e}")
+            session.rollback()
+
+        finally:
+            session.close()

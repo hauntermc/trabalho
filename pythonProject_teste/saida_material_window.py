@@ -1,53 +1,78 @@
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QComboBox, QLineEdit, QPushButton, QMessageBox, QDateEdit
-from sqlalchemy import create_engine, Integer, String, Date, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QComboBox, QLineEdit, QPushButton, QMessageBox, QDateEdit, QLabel
+from PyQt5 import QtWidgets
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from datetime import date
-from estoque_database import Produto, Estoque, SaidaMaterial
+from produto_database import Produto, Estoque, SaidaMaterial
 
-Base = declarative_base()
-
-class SaidaMaterialWindow(QDialog):
+class SaidaMaterialWindowDialog(QtWidgets.QDialog):
     def __init__(self):
-        super().__init__()
-        self.setWindowTitle('Saída de Material')
+        super(SaidaMaterialWindowDialog, self).__init__()
+        self.setWindowTitle('Registrar Saída de Material')
+        self.setGeometry(100, 100, 600, 400)  # Defina as dimensões conforme necessário
+
         self.initUI()
 
     def initUI(self):
         layout = QVBoxLayout()
 
+        # Dropdown de Produto
+        label_produto = QLabel('Produto:')
         self.produto_combo = QComboBox(self)
         self.carregar_produtos()  # Carregar produtos disponíveis
+        layout.addWidget(label_produto)
         layout.addWidget(self.produto_combo)
 
+        # Campo de Técnico
+        label_tecnico = QLabel('Nome ou Matrícula do Técnico:')
         self.tecnico_input = QLineEdit(self)
         self.tecnico_input.setPlaceholderText('Nome ou Matrícula do Técnico')
+        layout.addWidget(label_tecnico)
         layout.addWidget(self.tecnico_input)
 
+        # Dropdown de Tipo de Saída
+        label_tipo_saida = QLabel('Tipo de Saída:')
         self.tipo_saida_combo = QComboBox(self)
         self.tipo_saida_combo.addItems(['SOM', 'TELEFONIA', 'CFTV', 'KIT', 'USO INTERNO', 'CAUTELA'])
+        layout.addWidget(label_tipo_saida)
         layout.addWidget(self.tipo_saida_combo)
 
+        # Campo de Ordem de Serviço
+        label_ordem_servico = QLabel('Ordem de Serviço:')
         self.ordem_servico_input = QLineEdit(self)
         self.ordem_servico_input.setPlaceholderText('Ordem de Serviço')
+        layout.addWidget(label_ordem_servico)
         layout.addWidget(self.ordem_servico_input)
 
+        # Campo de Data da Ordem
+        label_data_ordem = QLabel('Data da Ordem:')
         self.data_ordem_input = QDateEdit(self)
         self.data_ordem_input.setDate(date.today())
+        layout.addWidget(label_data_ordem)
         layout.addWidget(self.data_ordem_input)
 
+        # Campo de Local de Serviço
+        label_local_servico = QLabel('Local de Serviço:')
         self.local_servico_input = QLineEdit(self)
         self.local_servico_input.setPlaceholderText('Local de Serviço')
+        layout.addWidget(label_local_servico)
         layout.addWidget(self.local_servico_input)
 
+        # Campo de Patrimônio
+        label_patrimonio = QLabel('Patrimônio (opcional):')
         self.patrimonio_input = QLineEdit(self)
         self.patrimonio_input.setPlaceholderText('Patrimônio (opcional)')
+        layout.addWidget(label_patrimonio)
         layout.addWidget(self.patrimonio_input)
 
+        # Campo de Quantidade
+        label_quantidade = QLabel('Quantidade:')
         self.quantidade_input = QLineEdit(self)
         self.quantidade_input.setPlaceholderText('Quantidade')
+        layout.addWidget(label_quantidade)
         layout.addWidget(self.quantidade_input)
 
+        # Botão de Registrar Saída
         registrar_button = QPushButton('Registrar Saída')
         registrar_button.clicked.connect(self.registrar_saida)
         layout.addWidget(registrar_button)
@@ -74,16 +99,10 @@ class SaidaMaterialWindow(QDialog):
 
         try:
             estoque_produto = session_estoque.query(Estoque).filter_by(produto_id=produto_id).first()
-            print(f"Produto ID {produto_id}: Estoque encontrado: {estoque_produto}")
 
-            if estoque_produto:
-                print(f"Quantidade disponível no estoque: {estoque_produto.quantidade}")
-                if estoque_produto.quantidade >= quantidade:
-                    return True
-                else:
-                    return False
+            if estoque_produto and estoque_produto.quantidade >= quantidade:
+                return True
             else:
-                print("Produto não encontrado no estoque.")
                 return False
 
         except Exception as e:
@@ -98,43 +117,47 @@ class SaidaMaterialWindow(QDialog):
         SessionSaida = sessionmaker(bind=engine_saida)
         session_saida = SessionSaida()
 
-        engine_estoque = create_engine('sqlite:///estoque_database.db')
-        SessionEstoque = sessionmaker(bind=engine_estoque)
-        session_estoque = SessionEstoque()
-
         try:
+            nome_produto = self.produto_combo.currentText()
+            produto = self.session_produto.query(Produto).filter_by(nome=nome_produto).first()
+
+            if not produto:
+                raise ValueError('Produto não encontrado.')
+
+            quantidade = int(self.quantidade_input.text())
+
+            if not self.validar_quantidade_suficiente(produto.id, quantidade):
+                raise ValueError('Quantidade insuficiente no estoque.')
+
             tecnico = self.tecnico_input.text()
             tipo_saida = self.tipo_saida_combo.currentText()
             ordem_servico = self.ordem_servico_input.text()
             data_ordem = self.data_ordem_input.date().toPyDate()
             local_servico = self.local_servico_input.text()
             patrimonio = self.patrimonio_input.text()
-            quantidade = int(self.quantidade_input.text())
 
-            nome_produto = self.produto_combo.currentText()
-            produto = self.session_produto.query(Produto).filter_by(nome=nome_produto).first()
-            print(f"Produto selecionado: {produto.nome} (ID: {produto.id})")
-
-            if not produto:
-                raise ValueError('Produto não encontrado.')
-
-            if not self.validar_quantidade_suficiente(produto.id, quantidade):
-                raise ValueError('Quantidade insuficiente no estoque.')
-
-            saida_material = SaidaMaterial(tecnico=tecnico, tipo_saida=tipo_saida, ordem_servico=ordem_servico,
-                                           data_ordem=data_ordem, local_servico=local_servico, patrimonio=patrimonio,
-                                           quantidade=quantidade, produto=produto)
-
+            saida_material = SaidaMaterial(
+                produto_id=produto.id,
+                tecnico=tecnico,
+                tipo_saida=tipo_saida,
+                ordem_servico=ordem_servico,
+                data_ordem=data_ordem,
+                local_servico=local_servico,
+                patrimonio=patrimonio,
+                quantidade=quantidade
+            )
             session_saida.add(saida_material)
             session_saida.commit()
 
-            estoque_produto = session_estoque.query(Estoque).filter_by(produto_id=produto.id).first()
-            print(f"Quantidade atual no estoque antes da saída: {estoque_produto.quantidade}")
+            # Atualizar o estoque após a saída
+            engine_estoque = create_engine('sqlite:///estoque_database.db')
+            SessionEstoque = sessionmaker(bind=engine_estoque)
+            session_estoque = SessionEstoque()
 
+            estoque_produto = session_estoque.query(Estoque).filter_by(produto_id=produto.id).first()
             if estoque_produto:
                 estoque_produto.quantidade -= quantidade
                 session_estoque.commit()
-                print(f"Quantidade atual no estoque após a saída: {estoque_produto.quantidade}")
 
             QMessageBox.information(self, 'Sucesso', 'Saída de material registrada com sucesso!')
 
@@ -143,4 +166,10 @@ class SaidaMaterialWindow(QDialog):
 
         finally:
             session_saida.close()
-            session_estoque.close()
+
+if __name__ == '__main__':
+    import sys
+    app = QtWidgets.QApplication(sys.argv)
+    dialog = SaidaMaterialWindowDialog()
+    dialog.show()
+    sys.exit(app.exec_())

@@ -10,8 +10,7 @@ from print_handler import PrintHandler
 from show_tecnico_window import ShowTecnicoWindow
 from show_products_window import ShowProductsWindow
 from show_fornecedor_window import ShowFornecedores
-from saida_material_window import SaidaMaterial
-
+from saida_material_window import SaidaMaterialWindowDialog
 class MainWindow(QMainWindow):
     def __init__(self, username):
         super().__init__()
@@ -155,7 +154,7 @@ class MainWindow(QMainWindow):
 
     def open_saida_material_window(self):
         try:
-            saida_material_window = SaidaMaterial()
+            saida_material_window = SaidaMaterialWindowDialog()
             saida_material_window.exec_()
         except Exception as e:
             print(f'Erro ao abrir janela de saída de material: {e}')

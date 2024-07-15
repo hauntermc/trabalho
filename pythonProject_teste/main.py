@@ -2,7 +2,7 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QLineEdit, QLabel, QVBoxLayout, QHBoxLayout
 from login_window import LoginWindow
-#from login_window import RegisterWindow
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

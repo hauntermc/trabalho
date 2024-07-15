@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QMessageBox, QLineEdit
 from sqlalchemy.orm import sessionmaker
-from produto_database import engine_produto, Produto  # Importe seu engine SQLAlchemy e modelo Produto
+from produto_database import iniciar_sessao, Produto, criar_banco_dados  # Importe seu engine SQLAlchemy e modelo Produto
 
 
 class ShowProductsWindow(QDialog):
@@ -27,11 +27,11 @@ class ShowProductsWindow(QDialog):
         self.load_data()
 
     def load_data(self):
-        Session = sessionmaker(bind=engine_produto)
-        session = Session()
-
         try:
-            search_term = self.search_input.text()
+            engine = criar_banco_dados()  # Cria o engine SQLAlchemy
+            session = iniciar_sessao(engine)  # Inicia a sessão com o engine
+
+            search_term = self.search_input.text().strip()  # Obtém o termo de busca
             query = session.query(Produto)
 
             if search_term:
@@ -40,7 +40,7 @@ class ShowProductsWindow(QDialog):
             produtos = query.all()
 
             self.table.setRowCount(len(produtos))
-            self.table.setColumnCount(6)  # Ajuste para 5 colunas: ID, Nome, Preço, Nota Fiscal, Data
+            self.table.setColumnCount(6)  # Ajuste para 6 colunas: ID, Nome, Preço, Nota Fiscal, Data, Quantidade
             self.table.setHorizontalHeaderLabels(['ID', 'Nome', 'Preço', 'Nota Fiscal', 'Data', 'Quantidade'])
 
             for row, produto in enumerate(produtos):
@@ -48,9 +48,13 @@ class ShowProductsWindow(QDialog):
                 self.table.setItem(row, 1, QTableWidgetItem(produto.nome))
                 self.table.setItem(row, 2, QTableWidgetItem(str(produto.preco)))
                 self.table.setItem(row, 3, QTableWidgetItem(produto.nota_fiscal))
-                self.table.setItem(row, 4, QTableWidgetItem(str(produto.data)))  # Adiciona a data
+                self.table.setItem(row, 4, QTableWidgetItem(str(produto.data)))
                 self.table.setItem(row, 5, QTableWidgetItem(str(produto.quantidade)))
+
+            session.close()  # Fecha a sessão ao finalizar
+
         except Exception as e:
-            QMessageBox.warning(self, 'Erro ao carregar produtos', str(e))
-        finally:
-            session.close()
+            print(f'Erro ao carregar produtos: {e}')
+            QMessageBox.critical(self, 'Erro ao Carregar Produtos',
+                                 f'Ocorreu um erro ao carregar produtos:\n\n{str(e)}')
+
