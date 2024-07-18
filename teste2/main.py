@@ -6,6 +6,9 @@ from views.material_registration_view import MaterialRegistrationWindow
 from views.fornecedor_registration_view import FornecedorRegistrationWindow
 from views.tecnico_registration_view import TecnicoRegistrationWindow
 from views.register_view import RegisterWindow
+from views.showproducts_window import ShowProductsWindow
+from views.showtecnico_view import ShowTecnicoWindow
+from views.material_withdraw_window import MaterialWithdrawWindow
 
 class MainWindow(QStackedWidget):
     def __init__(self):
@@ -13,17 +16,20 @@ class MainWindow(QStackedWidget):
 
         self.login_window = LoginWindow(self)
         self.after_login_screen = AfterLoginScreen()
-        #self.register_window = RegisterWindow()
+        self.register_window = RegisterWindow(self)
 
         self.addWidget(self.login_window)          # Index 0
         self.addWidget(self.after_login_screen)    # Index 1
-        #self.addWidget(self.register_window)       # Index 2
+        self.addWidget(self.register_window)       # Index 2
 
 
 
         self.after_login_screen.btn_registrar_produto.clicked.connect(self.abrir_tela_registro_produto)
         self.after_login_screen.btn_registrar_fornecedor.clicked.connect(self.abrir_tela_registro_fornecedor)
         self.after_login_screen.btn_registrar_tecnico.clicked.connect(self.abrir_tela_registro_tecnico)
+        self.after_login_screen.btn_retirar_material.clicked.connect(self.abrir_janela_retirar_material)
+        self.after_login_screen.btn_mostrar_produto.clicked.connect(self.mostrar_produto)
+        self.after_login_screen.btn_mostrar_tecnico.clicked.connect(self.mostrar_tecnico)
         self.login_window.register_button.clicked.connect(self.abrir_tela_register)
         self.after_login_screen.btn_logout.clicked.connect(self.logout)
 
@@ -57,6 +63,27 @@ class MainWindow(QStackedWidget):
             self.register_window.show()  # Mostra a janela de registro de produtos
         except Exception as e:
             print(f"Erro ao abrir tela de registro : {e}")
+
+    def mostrar_produto(self):
+        try:
+            self.show_products_window = ShowProductsWindow()
+            self.show_products_window.show()
+        except Exception as e:
+            print(f"Erro ao mostrar produtos: {e}")
+
+    def mostrar_tecnico(self):
+        try:
+            self.show_tecnico_window = ShowTecnicoWindow()
+            self.show_tecnico_window.show()
+        except Exception as e:
+            print(f'Erro ao mostrar Tecnicos: {e}')
+
+    def abrir_janela_retirar_material(self):
+        try:
+            self.material_withdraw_window = MaterialWithdrawWindow()
+            self.material_withdraw_window.show()
+        except Exception as e:
+            print(f"Erro ao abrir janela de retirada de material: {e}")
 
     def logout(self):
         self.setCurrentIndex(0)

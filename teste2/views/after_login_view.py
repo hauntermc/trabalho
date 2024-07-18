@@ -19,6 +19,15 @@ class AfterLoginScreen(QWidget):
         self.btn_registrar_tecnico = QPushButton('Registrar Tecnico')
         layout.addWidget(self.btn_registrar_tecnico)
 
+        self.btn_mostrar_produto = QPushButton('Mostrar Produtos')
+        layout.addWidget(self.btn_mostrar_produto)
+
+        self.btn_mostrar_tecnico = QPushButton('Mostrar Tecnico')
+        layout.addWidget(self.btn_mostrar_tecnico)
+
+        self.btn_retirar_material = QPushButton('Retirar Material')
+        layout.addWidget(self.btn_retirar_material)
+
         self.btn_logout = QPushButton ('Logout', self)
         layout.addWidget(self.btn_logout)
 

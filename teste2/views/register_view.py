@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QStackedWidget
 from controllers.register_controller import register_user
 
 class RegisterWindow(QWidget):
@@ -48,6 +48,15 @@ class RegisterWindow(QWidget):
             success, message = register_user(nome, username, password, confirm_password)
             self.status_label.setText(message)
             if success:
-                self.parent().setCurrentIndex(0)
+                self.nome_input.clear()  # Limpa o campo Nome
+                self.username_input.clear()  # Limpa o campo Username
+                self.password_input.clear()  # Limpa o campo Password
+                self.confirm_password_input.clear()  # Limpa o campo Confirmar Password
+                self.status_label.setText("Registrado com sucesso")
+                parent_widget = self.parent()
+                if parent_widget and isinstance(parent_widget, QStackedWidget):
+                    parent_widget.setCurrentIndex(0)
+                else:
+                    self.status_label.setText("Erro ao registrar: parent_widget é None ou não é um QStackedWidget")
         except Exception as e:
             self.status_label.setText(f"Erro ao registrar: {str(e)}")
