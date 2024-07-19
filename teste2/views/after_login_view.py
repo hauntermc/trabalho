@@ -28,6 +28,12 @@ class AfterLoginScreen(QWidget):
         self.btn_retirar_material = QPushButton('Retirar Material')
         layout.addWidget(self.btn_retirar_material)
 
+        self.btn_retorno_material = QPushButton('Retorno de Material')
+        layout.addWidget(self.btn_retorno_material)
+
+        self.btn_mostrar_produtos_retirados = QPushButton('Mostrar Produtos Retirados', self)
+        layout.addWidget(self.btn_mostrar_produtos_retirados)
+
         self.btn_logout = QPushButton ('Logout', self)
         layout.addWidget(self.btn_logout)
 

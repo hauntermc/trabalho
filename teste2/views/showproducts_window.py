@@ -1,7 +1,8 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QLineEdit, QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem
 from models import Material, Fornecedor
 from utils.db_utils import Session
 from PyQt5.QtCore import Qt
+
 
 class ShowProductsWindow(QWidget):
     def __init__(self, parent=None):
@@ -18,6 +19,16 @@ class ShowProductsWindow(QWidget):
         title_label = QLabel('Produtos Registrados', self)
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
+
+        # Campo de pesquisa
+        self.search_label = QLabel('Pesquisar Produto:', self)
+        self.search_input = QLineEdit(self)
+        self.search_button = QPushButton('Pesquisar', self)
+        self.search_button.clicked.connect(self.search_products)
+
+        layout.addWidget(self.search_label)
+        layout.addWidget(self.search_input)
+        layout.addWidget(self.search_button)
 
         # Tabela para exibir produtos
         self.table_widget = QTableWidget()
@@ -43,31 +54,50 @@ class ShowProductsWindow(QWidget):
         # Atualizar a lista de produtos ao exibir a janela
         self.update_product_list()
 
-    def update_product_list(self):
+    def search_products(self):
+        search_text = self.search_input.text().strip()
         try:
-            session = Session()
-            produtos = session.query(Material).all()
+            with Session() as session:
+                query = session.query(Material)
+                if search_text:
+                    query = query.filter(Material.nome.like(f"%{search_text}%"))
 
-            self.table_widget.setRowCount(len(produtos))
-
-            for row, produto in enumerate(produtos):
-                # Convertendo a data para string formatada
-                data_formatada = produto.data.strftime('%d/%m/%Y')
-
-                # Obtendo o nome do fornecedor
-                fornecedor = session.query(Fornecedor).filter_by(id=produto.fornecedor_id).first()
-
-                self.table_widget.setItem(row, 0, QTableWidgetItem(str(produto.id)))
-                self.table_widget.setItem(row, 1, QTableWidgetItem(produto.nome))
-                self.table_widget.setItem(row, 2, QTableWidgetItem(str(produto.preco)))
-                self.table_widget.setItem(row, 3, QTableWidgetItem(produto.nota_fiscal))
-                self.table_widget.setItem(row, 4, QTableWidgetItem(str(produto.quantidade)))
-                self.table_widget.setItem(row, 5, QTableWidgetItem(data_formatada))
-                self.table_widget.setItem(row, 6, QTableWidgetItem(fornecedor.nome if fornecedor else 'Não encontrado'))
-
-            session.close()
+                produtos = query.all()
+                self.update_table(produtos)
         except Exception as e:
             print(f"Erro ao buscar produtos: {e}")
+
+    def update_product_list(self):
+        try:
+            with Session() as session:
+                produtos = session.query(Material).all()
+                self.update_table(produtos)
+        except Exception as e:
+            print(f"Erro ao buscar produtos: {e}")
+
+    def update_table(self, produtos):
+        self.table_widget.setRowCount(len(produtos))
+
+        for row, produto in enumerate(produtos):
+            # Convertendo a data para string formatada
+            data_formatada = produto.data.strftime('%d/%m/%Y')
+
+            try:
+                with Session() as session:
+                    fornecedor = session.query(Fornecedor).filter_by(id=produto.fornecedor_id).first()
+
+            except Exception as e:
+                fornecedor = None
+                print(f"Erro ao buscar fornecedor: {e}")
+
+            self.table_widget.setItem(row, 0, QTableWidgetItem(str(produto.id)))
+            self.table_widget.setItem(row, 1, QTableWidgetItem(produto.nome))
+            self.table_widget.setItem(row, 2, QTableWidgetItem(f"{produto.preco:.2f}"))
+            self.table_widget.setItem(row, 3, QTableWidgetItem(produto.nota_fiscal))
+            self.table_widget.setItem(row, 4, QTableWidgetItem(str(produto.quantidade)))
+            self.table_widget.setItem(row, 5, QTableWidgetItem(data_formatada))
+            self.table_widget.setItem(row, 6, QTableWidgetItem(fornecedor.nome if fornecedor else 'Não encontrado'))
+
 
 # Teste da janela de produtos
 if __name__ == '__main__':

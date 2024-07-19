@@ -21,11 +21,13 @@ class RegisterWindow(QWidget):
 
         label_password = QLabel('Password')
         self.password_input = QLineEdit(self)
+        self.password_input.setEchoMode(QLineEdit.Password)  # Mostra a senha como asteriscos
         layout.addWidget(label_password)
         layout.addWidget(self.password_input)
 
         label_confirm_password = QLabel('Confirmar Password')
         self.confirm_password_input = QLineEdit(self)
+        self.confirm_password_input.setEchoMode(QLineEdit.Password)  # Mostra a senha como asteriscos
         layout.addWidget(label_confirm_password)
         layout.addWidget(self.confirm_password_input)
 
@@ -44,6 +46,18 @@ class RegisterWindow(QWidget):
             username = self.username_input.text()
             password = self.password_input.text()
             confirm_password = self.confirm_password_input.text()
+
+            if len(username) < 4:
+                self.status_label.setText("Username deve ter pelo menos 4 caracteres.")
+                return
+
+            if len(password) < 4:
+                self.status_label.setText("Senha deve ter pelo menos 4 caracteres.")
+                return
+
+            if password != confirm_password:
+                self.status_label.setText("As senhas não correspondem.")
+                return
 
             success, message = register_user(nome, username, password, confirm_password)
             self.status_label.setText(message)
