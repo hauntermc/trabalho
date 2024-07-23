@@ -1,13 +1,17 @@
+import sys
 from datetime import datetime
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QDateEdit, QComboBox, QFormLayout
-from PyQt5.QtCore import QDate
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QDateEdit, QComboBox, \
+    QFormLayout, QApplication
+from PyQt5.QtCore import QDate, pyqtSignal
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from models import Material, Tecnico, RetornoMaterial, engine
+from models import Material, Tecnico, RetornoMaterial, RetiradaMaterial, engine
 
 Session = sessionmaker(bind=engine)
 
 class RetornoMaterialWindow(QWidget):
+    material_returned = pyqtSignal()  # Sinal para notificar quando o material for devolvido
+
     def __init__(self, parent=None):
         super(RetornoMaterialWindow, self).__init__(parent)
         self.setWindowTitle("Retorno de Material")
@@ -28,10 +32,10 @@ class RetornoMaterialWindow(QWidget):
         self.cmb_produto = QComboBox()
         self.form_layout.addRow(self.produto_label, self.cmb_produto)
 
-        # ID do Técnico
-        self.tecnico_id_label = QLabel("ID do Técnico:")
-        self.tecnico_id_input = QLineEdit()
-        self.form_layout.addRow(self.tecnico_id_label, self.tecnico_id_input)
+        # Matrícula do Técnico
+        self.tecnico_matricula_label = QLabel("Matrícula do Técnico:")
+        self.tecnico_matricula_input = QLineEdit()
+        self.form_layout.addRow(self.tecnico_matricula_label, self.tecnico_matricula_input)
 
         # Quantidade
         self.quantidade_label = QLabel("Quantidade:")
@@ -71,17 +75,16 @@ class RetornoMaterialWindow(QWidget):
     def registrar_retorno(self):
         ordem_servico = self.ordem_servico_input.text()
         produto_id = self.cmb_produto.currentData()  # Obter o ID do produto selecionado no QComboBox
-        tecnico_id = self.tecnico_id_input.text()
+        tecnico_matricula = self.tecnico_matricula_input.text()
         quantidade = self.quantidade_input.text()
         data_retorno = self.data_retorno_input.date().toPyDate()
 
-        if not ordem_servico or produto_id is None or not tecnico_id or not quantidade:
+        if not ordem_servico or produto_id is None or not tecnico_matricula or not quantidade:
             QMessageBox.warning(self, "Erro", "Todos os campos devem ser preenchidos.")
             return
 
         try:
             produto_id = int(produto_id)
-            tecnico_id = int(tecnico_id)
             quantidade = int(quantidade)
         except ValueError:
             QMessageBox.warning(self, "Erro", "IDs e Quantidade devem ser números inteiros.")
@@ -95,15 +98,20 @@ class RetornoMaterialWindow(QWidget):
                 QMessageBox.warning(self, "Erro", "Produto não encontrado.")
                 return
 
-            tecnico = session.query(Tecnico).filter_by(id=tecnico_id).first()
+            tecnico = session.query(Tecnico).filter_by(matricula=tecnico_matricula).first()
             if tecnico is None:
                 QMessageBox.warning(self, "Erro", "Técnico não encontrado.")
+                return
+
+            retirada = session.query(RetiradaMaterial).filter_by(ordem_servico=ordem_servico, produto_id=produto_id, tecnico_id=tecnico.id).first()
+            if retirada is None:
+                QMessageBox.warning(self, "Erro", "Não há registro de retirada com esta ordem de serviço para este produto e técnico.")
                 return
 
             retorno = RetornoMaterial(
                 ordem_servico=ordem_servico,
                 produto_id=produto_id,
-                tecnico_id=tecnico_id,
+                tecnico_id=tecnico.id,
                 quantidade=quantidade,
                 data_retorno=data_retorno,
                 data=datetime.utcnow().date()  # Adiciona a data atual
@@ -111,9 +119,11 @@ class RetornoMaterialWindow(QWidget):
             session.add(retorno)
 
             produto.quantidade += quantidade
+            retirada.devolvido = True  # Atualizar o status de devolução
             session.commit()
 
             QMessageBox.information(self, "Sucesso", "Retorno registrado com sucesso.")
+            self.material_returned.emit()  # Emitir o sinal de material devolvido
             self.close()
 
         except Exception as e:
@@ -122,3 +132,9 @@ class RetornoMaterialWindow(QWidget):
 
         finally:
             session.close()
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = RetornoMaterialWindow()
+    window.show()
+    sys.exit(app.exec_())

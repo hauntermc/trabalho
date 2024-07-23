@@ -1,9 +1,8 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem, QHBoxLayout, QMessageBox
 from sqlalchemy.orm import Session
 from models import RetiradaMaterial, Material, Tecnico
 from utils.db_utils import engine
 from PyQt5.QtCore import Qt
-from datetime import datetime
 
 class ShowWithdrawalsWindow(QWidget):
     def __init__(self, parent=None):
@@ -22,22 +21,28 @@ class ShowWithdrawalsWindow(QWidget):
 
         # Tabela para exibir retiradas
         self.table_widget = QTableWidget()
-        self.table_widget.setColumnCount(7)  # Número de colunas
+        self.table_widget.setColumnCount(8)  # Número de colunas
 
         # Definindo os cabeçalhos da tabela
-        headers = ['ID', 'Nome do Material', 'Quantidade', 'Data', 'Usuário', 'Ordem de Serviço', 'Local']
+        headers = ['ID', 'Nome do Material', 'Quantidade', 'Data', 'Usuário', 'Ordem de Serviço', 'Local', 'Devolvido']
         self.table_widget.setHorizontalHeaderLabels(headers)
 
         layout.addWidget(self.table_widget)
 
+        # Layout horizontal para os botões
+        button_layout = QHBoxLayout()
+
         # Botão para atualizar a lista de retiradas
         update_button = QPushButton('Atualizar Lista', self)
         update_button.clicked.connect(self.update_withdrawal_list)
-        layout.addWidget(update_button)
+        button_layout.addWidget(update_button)
 
+        # Botão para fechar a janela
         close_button = QPushButton('Fechar')
         close_button.clicked.connect(self.close)
-        layout.addWidget(close_button)
+        button_layout.addWidget(close_button)
+
+        layout.addLayout(button_layout)
 
         self.setLayout(layout)
 
@@ -67,16 +72,14 @@ class ShowWithdrawalsWindow(QWidget):
                 self.table_widget.setItem(row, 5, QTableWidgetItem(retirada.ordem_servico))
                 self.table_widget.setItem(row, 6, QTableWidgetItem(retirada.local))
 
-            session.close()
+                # Adicionando a coluna "Já Voltou" (Devolvido)
+                devolvido = 'Sim' if retirada.devolvido else 'Não'
+                self.table_widget.setItem(row, 7, QTableWidgetItem(devolvido))
+
         except Exception as e:
-            print(f"Erro ao buscar retiradas: {e}")
+            QMessageBox.critical(self, 'Erro', f'Erro ao carregar retiradas: {e}')
+        finally:
+            session.close()
 
-# Teste da janela de retiradas
-if __name__ == '__main__':
-    import sys
-    from PyQt5.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    window = ShowWithdrawalsWindow()
-    window.show()
-    sys.exit(app.exec_())
+    def connect_return_window(self, return_window):
+        return_window.material_returned.connect(self.update_withdrawal_list)

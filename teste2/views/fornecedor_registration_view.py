@@ -19,8 +19,6 @@ class FornecedorRegistrationWindow(QWidget):
         layout.addWidget(label_cnpj)
         layout.addWidget(self.cnpj_input)
 
-
-
         self.register_button = QPushButton('Registrar Fornecedor', self)
         self.register_button.clicked.connect(self.register_fornecedor)
         layout.addWidget(self.register_button)
@@ -28,8 +26,8 @@ class FornecedorRegistrationWindow(QWidget):
         self.setLayout(layout)
 
     def register_fornecedor(self):
-        nome = self.nome.text()
-        cnpj = self.cnpj.text() if self.cnpj.text() else None
+        nome = self.nome_input.text()
+        cnpj = self.cnpj_input.text() if self.cnpj_input.text() else None
 
         try:
             if register_fornecedor(nome, cnpj):

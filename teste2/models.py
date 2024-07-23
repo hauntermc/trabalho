@@ -1,9 +1,9 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, UniqueConstraint, Date, \
-    Text, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey, UniqueConstraint, Date, Text, Boolean
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
+# Configuração do banco de dados
 engine = create_engine('sqlite:///estoque.db', echo=True)
 Base = declarative_base()
 
@@ -36,6 +36,7 @@ class Material(Base):
     fornecedor = relationship('Fornecedor', back_populates='materiais')
     retiradas = relationship('RetiradaMaterial', back_populates='produto')
     retornos = relationship('RetornoMaterial', back_populates='produto')
+    patrimonio = Column(String)
 
 class Tecnico(Base):
     __tablename__ = 'tecnicos'
@@ -60,18 +61,17 @@ class RetiradaMaterial(Base):
     quantidade = Column(Integer, nullable=False)
     data = Column(Date, nullable=False)
     local = Column(Text, nullable=False)
-    devolvido = Column(Boolean, default=False)
+    devolvido = Column(Boolean, default=False)  # Campo para indicar se o material foi devolvido
+    patrimonio = Column(String)
 
     produto = relationship('Material', back_populates='retiradas')
     tecnico = relationship('Tecnico', back_populates='retiradas')
 
-    @property
-    def ja_voltou(self):
-        total_retorno = sum(
-            retorno.quantidade for retorno in self.produto.retornos if retorno.ordem_servico == self.ordem_servico)
-
     def __repr__(self):
-        return f"<RetiradaMaterial(codigo={self.codigo}, ordem_servico={self.ordem_servico}, produto_id={self.produto_id}, tecnico_id={self.tecnico_id}, quantidade={self.quantidade}, data={self.data}, local={self.local})>"
+        devolvido_str = "Sim" if self.devolvido else "Não"
+        return (f"<RetiradaMaterial(codigo={self.codigo}, ordem_servico={self.ordem_servico}, "
+                f"produto_id={self.produto_id}, tecnico_id={self.tecnico_id}, quantidade={self.quantidade}, "
+                f"data={self.data}, local={self.local}, devolvido={devolvido_str})>")
 
 class RetornoMaterial(Base):
     __tablename__ = 'retorno_material'
@@ -88,7 +88,9 @@ class RetornoMaterial(Base):
     tecnico = relationship('Tecnico', back_populates='retornos')
 
     def __repr__(self):
-        return f"<RetornoMaterial(ordem_servico={self.ordem_servico}, produto_id={self.produto_id}, tecnico_id={self.tecnico_id}, quantidade={self.quantidade}, data_retorno={self.data_retorno}, data={self.data})>"
+        return (f"<RetornoMaterial(ordem_servico={self.ordem_servico}, produto_id={self.produto_id}, "
+                f"tecnico_id={self.tecnico_id}, quantidade={self.quantidade}, data_retorno={self.data_retorno}, "
+                f"data={self.data})>")
 
 if __name__ == '__main__':
     Base.metadata.create_all(engine)

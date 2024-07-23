@@ -1,7 +1,8 @@
+# material_withdraw_window.py
+
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QComboBox, QFormLayout
-from PyQt5.QtCore import QDate
 from utils.db_utils import Session
-from models import Material, Tecnico, RetiradaMaterial  # Adicione RetiradaMaterial aqui
+from models import Material, Tecnico, RetiradaMaterial
 import sys
 from datetime import datetime
 
@@ -40,6 +41,10 @@ class MaterialWithdrawWindow(QWidget):
         self.lbl_ordem_servico = QLabel('Código da Ordem de Serviço:')
         self.txt_ordem_servico = QLineEdit()
         self.form_layout.addRow(self.lbl_ordem_servico, self.txt_ordem_servico)
+
+        self.lbl_patrimonio = QLabel('Patrimônio:')
+        self.txt_patrimonio = QLineEdit()
+        self.form_layout.addRow(self.lbl_patrimonio, self.txt_patrimonio)
 
         layout.addLayout(self.form_layout)
 
@@ -83,8 +88,9 @@ class MaterialWithdrawWindow(QWidget):
             data_text = self.txt_data.text()
             local = self.txt_local.text()
             ordem_servico = self.txt_ordem_servico.text()
+            patrimonio = self.txt_patrimonio.text()
 
-            if not (quantidade and produto_id and tecnico_id and data_text and local and ordem_servico):
+            if not (quantidade and produto_id and tecnico_id and data_text and local and ordem_servico and patrimonio):
                 QMessageBox.warning(self, 'Erro', 'Todos os campos devem ser preenchidos!')
                 return
 
@@ -96,9 +102,20 @@ class MaterialWithdrawWindow(QWidget):
                 return
 
             session = Session()
+
+            # Verificar se a ordem_servico já existe
+            existing_retirada = session.query(RetiradaMaterial).filter_by(ordem_servico=ordem_servico).first()
+            if existing_retirada:
+                QMessageBox.warning(self, 'Erro', 'Ordem de serviço já existe!')
+                return
+
             produto = session.query(Material).filter_by(id=produto_id).first()
 
             if produto:
+                if produto.patrimonio != patrimonio:
+                    QMessageBox.warning(self, 'Erro', 'Patrimônio do produto não corresponde ao patrimônio registrado!')
+                    return
+
                 if quantidade <= produto.quantidade:
                     produto.quantidade -= quantidade
 
@@ -109,7 +126,9 @@ class MaterialWithdrawWindow(QWidget):
                         tecnico_id=tecnico_id,
                         quantidade=quantidade,
                         data=data,  # Certifique-se de que data é do tipo date
-                        local=local
+                        local=local,
+                        patrimonio=patrimonio,
+                        devolvido=False  # Inicialmente, o material ainda não voltou
                     )
                     session.add(retirada)
                     session.commit()
@@ -119,10 +138,11 @@ class MaterialWithdrawWindow(QWidget):
             else:
                 QMessageBox.warning(self, 'Erro', 'Produto não encontrado!')
 
-        except ValueError:
-            QMessageBox.warning(self, 'Erro', 'Digite uma quantidade válida!')
         except Exception as e:
             QMessageBox.critical(self, 'Erro', f'Erro ao retirar material: {e}')
+            # Adicione log para depuração
+            import traceback
+            traceback.print_exc()
         finally:
             if session:
                 session.close()

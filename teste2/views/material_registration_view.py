@@ -1,3 +1,4 @@
+#views/material_registration_view.py
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, QLabel
 from controllers.material_controller import register_material
 from datetime import datetime
@@ -35,6 +36,11 @@ class MaterialRegistrationWindow(QWidget):
         layout.addWidget(label_fornecedora)
         layout.addWidget(self.fornecedora_input)
 
+        label_patrimonio = QLabel('Patrimônio')
+        self.patrimonio_input = QLineEdit(self)
+        layout.addWidget(label_patrimonio)
+        layout.addWidget(self.patrimonio_input)
+
         label_data = QLabel('Data (DD/MM/AAAA)')
         self.data_input = QLineEdit(self)
         self.data_input.setInputMask('99/99/9999')  # Define a máscara de entrada para data
@@ -53,9 +59,9 @@ class MaterialRegistrationWindow(QWidget):
         nota_fiscal = self.nota_fiscal_input.text()
         quantidade_text = self.quantidade_input.text()
         fornecedora = self.fornecedora_input.text()
+        patrimonio = self.patrimonio_input.text()
         data_text = self.data_input.text()
 
-        # Validação dos campos numéricos
         try:
             preco = float(preco_text)
             quantidade = int(quantidade_text)
@@ -63,7 +69,6 @@ class MaterialRegistrationWindow(QWidget):
             QMessageBox.critical(self, 'Erro', 'Preço e Quantidade devem ser números válidos.')
             return
 
-        # Verifica se a data está no formato correto 'DD/MM/YYYY' e converte para date
         try:
             data = datetime.strptime(data_text, '%d/%m/%Y').date()
         except ValueError:
@@ -71,14 +76,19 @@ class MaterialRegistrationWindow(QWidget):
             return
 
         try:
-            if register_material(nome, preco, nota_fiscal, quantidade, fornecedora, data):
+            if register_material(nome, preco, nota_fiscal, quantidade, fornecedora, data, patrimonio):
                 QMessageBox.information(self, 'Sucesso', 'Material registrado com sucesso.')
                 self.nome_input.clear()
                 self.preco_input.clear()
                 self.nota_fiscal_input.clear()
                 self.quantidade_input.clear()
                 self.fornecedora_input.clear()
+                self.patrimonio_input.clear()
                 self.data_input.clear()
+
+                # Atualize a tabela de estoque, se a janela de estoque estiver aberta
+                if hasattr(self.parent(), 'show_estoque_window'):
+                    self.parent().show_estoque_window.update_stock_list()
             else:
                 QMessageBox.critical(self, 'Erro', 'Erro ao registrar material.')
         except Exception as e:

@@ -1,76 +1,89 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QStackedWidget
-from controllers.register_controller import register_user
+from PyQt5.QtWidgets import QWidget, QLineEdit, QPushButton, QVBoxLayout, QLabel, QMessageBox
+from PyQt5.QtCore import pyqtSignal
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from models import Usuario  # Certifique-se de que 'models' é o nome do seu arquivo de modelos e 'Usuario' é o nome da classe
+
 
 class RegisterWindow(QWidget):
+    # Sinal personalizado para indicar que a janela foi fechada
+    register_window_closed = pyqtSignal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.initUI()
 
-    def initUI(self):
-        layout = QVBoxLayout()
+        self.setWindowTitle('Registro de Usuário')
+        self.setGeometry(100, 100, 300, 200)
 
-        label_nome = QLabel('Nome')
-        self.nome_input = QLineEdit(self)
-        layout.addWidget(label_nome)
-        layout.addWidget(self.nome_input)
-
-        label_username = QLabel('Username')
+        self.username_label = QLabel('Username:', self)
         self.username_input = QLineEdit(self)
-        layout.addWidget(label_username)
-        layout.addWidget(self.username_input)
 
-        label_password = QLabel('Password')
+        self.password_label = QLabel('Password:', self)
         self.password_input = QLineEdit(self)
-        self.password_input.setEchoMode(QLineEdit.Password)  # Mostra a senha como asteriscos
-        layout.addWidget(label_password)
-        layout.addWidget(self.password_input)
+        self.password_input.setEchoMode(QLineEdit.Password)
 
-        label_confirm_password = QLabel('Confirmar Password')
+        self.confirm_password_label = QLabel('Confirm Password:', self)
         self.confirm_password_input = QLineEdit(self)
-        self.confirm_password_input.setEchoMode(QLineEdit.Password)  # Mostra a senha como asteriscos
-        layout.addWidget(label_confirm_password)
-        layout.addWidget(self.confirm_password_input)
+        self.confirm_password_input.setEchoMode(QLineEdit.Password)
 
         self.register_button = QPushButton('Register', self)
+        self.cancel_button = QPushButton('Cancel', self)
+
+        self.layout = QVBoxLayout(self)
+        self.layout.addWidget(self.username_label)
+        self.layout.addWidget(self.username_input)
+        self.layout.addWidget(self.password_label)
+        self.layout.addWidget(self.password_input)
+        self.layout.addWidget(self.confirm_password_label)
+        self.layout.addWidget(self.confirm_password_input)
+        self.layout.addWidget(self.register_button)
+        self.layout.addWidget(self.cancel_button)
+
         self.register_button.clicked.connect(self.register)
-        layout.addWidget(self.register_button)
-
-        self.status_label = QLabel('', self)
-        layout.addWidget(self.status_label)
-
-        self.setLayout(layout)
+        self.cancel_button.clicked.connect(self.close)
 
     def register(self):
+        username = self.username_input.text()
+        password = self.password_input.text()
+        confirm_password = self.confirm_password_input.text()
+
+        if not username or not password or not confirm_password:
+            self.show_message("Erro", "Todos os campos devem ser preenchidos.")
+            return
+
+        if password != confirm_password:
+            self.show_message("Erro", "As senhas não coincidem.")
+            return
+
+        # Aqui você pode adicionar a lógica para salvar o usuário no banco de dados
         try:
-            nome = self.nome_input.text()
-            username = self.username_input.text()
-            password = self.password_input.text()
-            confirm_password = self.confirm_password_input.text()
+            engine = create_engine('sqlite:///usuarios.db')
+            Session = sessionmaker(bind=engine)
+            session = Session()
 
-            if len(username) < 4:
-                self.status_label.setText("Username deve ter pelo menos 4 caracteres.")
+            # Verifica se o nome de usuário já existe
+            if session.query(Usuario).filter_by(username=username).first():
+                self.show_message("Erro", "Nome de usuário já existe.")
                 return
 
-            if len(password) < 4:
-                self.status_label.setText("Senha deve ter pelo menos 4 caracteres.")
-                return
+            # Adiciona o novo usuário
+            new_user = Usuario(username=username, senha=password)
+            session.add(new_user)
+            session.commit()
+            session.close()
 
-            if password != confirm_password:
-                self.status_label.setText("As senhas não correspondem.")
-                return
-
-            success, message = register_user(nome, username, password, confirm_password)
-            self.status_label.setText(message)
-            if success:
-                self.nome_input.clear()  # Limpa o campo Nome
-                self.username_input.clear()  # Limpa o campo Username
-                self.password_input.clear()  # Limpa o campo Password
-                self.confirm_password_input.clear()  # Limpa o campo Confirmar Password
-                self.status_label.setText("Registrado com sucesso")
-                parent_widget = self.parent()
-                if parent_widget and isinstance(parent_widget, QStackedWidget):
-                    parent_widget.setCurrentIndex(0)
-                else:
-                    self.status_label.setText("Erro ao registrar: parent_widget é None ou não é um QStackedWidget")
+            self.show_message("Sucesso", "Usuário registrado com sucesso.")
+            self.close()
         except Exception as e:
-            self.status_label.setText(f"Erro ao registrar: {str(e)}")
+            self.show_message("Erro", f"Erro ao registrar usuário: {e}")
+
+    def show_message(self, title, message):
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Information)
+        msg.setWindowTitle(title)
+        msg.setText(message)
+        msg.exec_()
+
+    def closeEvent(self, event):
+        self.register_window_closed.emit()  # Emite o sinal personalizado quando a janela é fechada
+        super().closeEvent(event)

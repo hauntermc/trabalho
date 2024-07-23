@@ -32,10 +32,10 @@ class ShowProductsWindow(QWidget):
 
         # Tabela para exibir produtos
         self.table_widget = QTableWidget()
-        self.table_widget.setColumnCount(7)  # Número de colunas
+        self.table_widget.setColumnCount(8)  # Número de colunas
 
         # Definindo os cabeçalhos da tabela
-        headers = ['ID', 'Nome', 'Preço', 'Nota Fiscal', 'Quantidade', 'Data', 'Fornecedor']
+        headers = ['ID', 'Nome', 'Preço', 'Nota Fiscal', 'Quantidade', 'Data', 'Fornecedor','Patrimônio']
         self.table_widget.setHorizontalHeaderLabels(headers)
 
         layout.addWidget(self.table_widget)
@@ -97,7 +97,7 @@ class ShowProductsWindow(QWidget):
             self.table_widget.setItem(row, 4, QTableWidgetItem(str(produto.quantidade)))
             self.table_widget.setItem(row, 5, QTableWidgetItem(data_formatada))
             self.table_widget.setItem(row, 6, QTableWidgetItem(fornecedor.nome if fornecedor else 'Não encontrado'))
-
+            self.table_widget.setItem(row, 7, QTableWidgetItem(str(produto.patrimonio) if produto.patrimonio else ''))
 
 # Teste da janela de produtos
 if __name__ == '__main__':

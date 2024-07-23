@@ -2,58 +2,41 @@ from models import Material, Fornecedor
 from utils.db_utils import Session
 from datetime import datetime
 
-def register_material(nome, preco, nota_fiscal, quantidade, fornecedor_nome, data):
+def register_material(nome, preco, nota_fiscal, quantidade, fornecedor_nome, data, patrimonio):
     session = None
     try:
         session = Session()
-
-        # Verifica se o fornecedor já existe no banco de dados pelo nome
         fornecedor = session.query(Fornecedor).filter_by(nome=fornecedor_nome).first()
         if not fornecedor:
-            # Se o fornecedor não existe, registra ele com CNPJ None
-            fornecedor = register_fornecedor(fornecedor_nome, cnpj=None)
-            if not fornecedor:
-                raise Exception(f"Fornecedor '{fornecedor_nome}' não pôde ser registrado.")
+            fornecedor = Fornecedor(nome=fornecedor_nome, cnpj=None)
+            session.add(fornecedor)
+            session.commit()
 
-        # Cria um novo material associado ao fornecedor
-        novo_material = Material(nome=nome, preco=preco, nota_fiscal=nota_fiscal,
-                                 quantidade=quantidade, data=data,
-                                 fornecedor=fornecedor)
-
-        session.add(novo_material)
-        session.commit()
+        material_existente = session.query(Material).filter_by(nome=nome, nota_fiscal=nota_fiscal).first()
+        if material_existente:
+            material_existente.quantidade += quantidade
+            session.commit()
+            print(f"Quantidade do material '{nome}' atualizada com sucesso.")
+        else:
+            novo_material = Material(
+                nome=nome,
+                preco=preco,
+                nota_fiscal=nota_fiscal,
+                quantidade=quantidade,
+                data=data,
+                fornecedor=fornecedor,
+                patrimonio=patrimonio
+            )
+            session.add(novo_material)
+            session.commit()
+            print(f"Material '{nome}' registrado com sucesso.")
 
         return True
     except Exception as e:
-        session.rollback()  # Rollback da transação em caso de erro
+        if session:
+            session.rollback()  # Rollback da transação em caso de erro
         print(f"Erro ao registrar material: {str(e)}")
         return False
-    finally:
-        if session:
-            session.close()
-
-def register_fornecedor(nome, cnpj=None):
-    session = None
-    try:
-        session = Session()
-
-        # Verifica se o fornecedor já existe no banco de dados pelo nome
-        fornecedor = session.query(Fornecedor).filter_by(nome=nome).first()
-        if fornecedor:
-            print(f"Fornecedor '{nome}' já está registrado.")
-            return fornecedor
-
-        # Cria um novo fornecedor
-        novo_fornecedor = Fornecedor(nome=nome, cnpj=cnpj)
-        session.add(novo_fornecedor)
-        session.commit()
-
-        print(f"Fornecedor '{nome}' registrado com sucesso.")
-        return novo_fornecedor
-    except Exception as e:
-        session.rollback()  # Rollback da transação em caso de erro
-        print(f"Erro ao registrar fornecedor: {str(e)}")
-        return None
     finally:
         if session:
             session.close()
