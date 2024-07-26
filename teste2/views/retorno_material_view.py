@@ -1,25 +1,25 @@
 import sys
 from datetime import datetime
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QDateEdit, QComboBox, \
-    QFormLayout, QApplication
-from PyQt5.QtCore import QDate, pyqtSignal
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QDateEdit, QApplication, \
+    QFormLayout, QComboBox
+from PyQt5.QtCore import QDate, pyqtSignal, Qt
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
-from models import Material, Tecnico, RetornoMaterial, RetiradaMaterial, engine
+from models import Material, RetornoMaterial, RetiradaMaterial, Tecnico, engine
 
 Session = sessionmaker(bind=engine)
 
 class RetornoMaterialWindow(QWidget):
-    material_returned = pyqtSignal()  # Sinal para notificar quando o material for devolvido
+    material_returned = pyqtSignal()  # Signal to notify when the material is returned
 
     def __init__(self, parent=None):
-        super(RetornoMaterialWindow, self).__init__(parent)
+        super().__init__(parent)
         self.setWindowTitle("Retorno de Material")
 
-        # Layout principal
-        layout = QVBoxLayout()
+        # Main Layout
+        main_layout = QVBoxLayout()
 
-        # Layout do formulário
+        # Form Layout
         self.form_layout = QFormLayout()
 
         # Ordem de Serviço
@@ -27,15 +27,15 @@ class RetornoMaterialWindow(QWidget):
         self.ordem_servico_input = QLineEdit()
         self.form_layout.addRow(self.ordem_servico_label, self.ordem_servico_input)
 
-        # Seleção de Produto
-        self.produto_label = QLabel("Selecionar Produto:")
+        # Nome do Produto
+        self.produto_label = QLabel("Nome do Produto:")
         self.cmb_produto = QComboBox()
         self.form_layout.addRow(self.produto_label, self.cmb_produto)
 
-        # Matrícula do Técnico
-        self.tecnico_matricula_label = QLabel("Matrícula do Técnico:")
-        self.tecnico_matricula_input = QLineEdit()
-        self.form_layout.addRow(self.tecnico_matricula_label, self.tecnico_matricula_input)
+        # Seleção de Técnico
+        self.tecnico_label = QLabel("Selecionar Técnico:")
+        self.cmb_tecnico = QComboBox()
+        self.form_layout.addRow(self.tecnico_label, self.cmb_tecnico)
 
         # Quantidade
         self.quantidade_label = QLabel("Quantidade:")
@@ -48,25 +48,86 @@ class RetornoMaterialWindow(QWidget):
         self.data_retorno_input.setDate(QDate.currentDate())
         self.form_layout.addRow(self.data_retorno_label, self.data_retorno_input)
 
-        # Botão de Enviar
+        # Patrimônio (opcional)
+        self.patrimonio_label = QLabel("Patrimônio (opcional):")
+        self.patrimonio_input = QLineEdit()
+        self.form_layout.addRow(self.patrimonio_label, self.patrimonio_input)
+
+        # Submit Button
         self.submit_button = QPushButton("Registrar Retorno")
         self.submit_button.clicked.connect(self.registrar_retorno)
-        layout.addWidget(self.submit_button)
 
-        # Adicionar o layout do formulário ao layout principal
-        layout.addLayout(self.form_layout)
-        self.setLayout(layout)
+        # Add form layout to main layout
+        main_layout.addLayout(self.form_layout)
+        main_layout.addWidget(self.submit_button, alignment=Qt.AlignBottom)
 
-        # Preencher o QComboBox com produtos
+        self.setLayout(main_layout)
+
+        # Populate ComboBoxes
+        self.populate_tecnicos()
         self.populate_produtos()
+
+        # Style the interface
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #f0f8ff;  /* Light Blue */
+                font-family: Arial, sans-serif;
+            }
+            QLabel {
+                color: #003d7a;  /* Dark Blue */
+                font-size: 16px;
+                font-weight: bold;
+            }
+            QLineEdit, QComboBox, QDateEdit {
+                padding: 10px;
+                border: 1px solid #003d7a;  /* Dark Blue */
+                border-radius: 5px;
+                background-color: #ffffff;  /* White */
+                margin-bottom: 15px;
+            }
+            QPushButton {
+                background-color: #003d7a;  /* Dark Blue */
+                color: white;
+                padding: 10px;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                cursor: pointer;
+                margin-top: 10px;
+            }
+            QPushButton:hover {
+                background-color: #00264d;  /* Even Darker Blue */
+            }
+        """)
+
+    def populate_tecnicos(self):
+        session = Session()
+        try:
+            self.cmb_tecnico.clear()
+            self.cmb_tecnico.addItem("Selecione um técnico")  # Optional default item
+
+            tecnicos = session.query(Tecnico).all()
+            for tecnico in tecnicos:
+                self.cmb_tecnico.addItem(f"{tecnico.nome} (Matrícula: {tecnico.matricula})", userData=tecnico.id)
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Erro ao carregar técnicos: {e}")
+        finally:
+            session.close()
 
     def populate_produtos(self):
         session = Session()
         try:
-            produtos = session.query(Material).all()
-            self.cmb_produto.addItem("Selecione um produto")  # Item padrão opcional
+            self.cmb_produto.clear()
+            self.cmb_produto.addItem("Selecione um produto")  # Optional default item
+
+            # Filtrar produtos com base nas retiradas que ainda não foram retornadas
+            retiradas_nao_retorno = session.query(RetiradaMaterial).filter_by(devolvido=False).all()
+            produto_ids = {retirada.produto_id for retirada in retiradas_nao_retorno}
+            produtos = session.query(Material).filter(Material.id.in_(produto_ids)).all()
+
             for produto in produtos:
-                self.cmb_produto.addItem(f"{produto.id} - {produto.nome}", userData=produto.id)
+                quantidade_disponivel = sum(retirada.quantidade for retirada in retiradas_nao_retorno if retirada.produto_id == produto.id)
+                self.cmb_produto.addItem(f"{produto.nome} (Quantidade: {quantidade_disponivel})", userData=produto.id)
         except Exception as e:
             QMessageBox.critical(self, "Erro", f"Erro ao carregar produtos: {e}")
         finally:
@@ -74,17 +135,18 @@ class RetornoMaterialWindow(QWidget):
 
     def registrar_retorno(self):
         ordem_servico = self.ordem_servico_input.text()
-        produto_id = self.cmb_produto.currentData()  # Obter o ID do produto selecionado no QComboBox
-        tecnico_matricula = self.tecnico_matricula_input.text()
+        produto_id = self.cmb_produto.currentData()
+        tecnico_id = self.cmb_tecnico.currentData()
         quantidade = self.quantidade_input.text()
         data_retorno = self.data_retorno_input.date().toPyDate()
+        patrimonio = self.patrimonio_input.text()
 
-        if not ordem_servico or produto_id is None or not tecnico_matricula or not quantidade:
-            QMessageBox.warning(self, "Erro", "Todos os campos devem ser preenchidos.")
+        if not ordem_servico or produto_id is None or tecnico_id is None or not quantidade:
+            QMessageBox.warning(self, "Erro", "Todos os campos obrigatórios devem ser preenchidos.")
             return
 
         try:
-            produto_id = int(produto_id)
+            tecnico_id = int(tecnico_id)
             quantidade = int(quantidade)
         except ValueError:
             QMessageBox.warning(self, "Erro", "IDs e Quantidade devem ser números inteiros.")
@@ -98,33 +160,69 @@ class RetornoMaterialWindow(QWidget):
                 QMessageBox.warning(self, "Erro", "Produto não encontrado.")
                 return
 
-            tecnico = session.query(Tecnico).filter_by(matricula=tecnico_matricula).first()
-            if tecnico is None:
-                QMessageBox.warning(self, "Erro", "Técnico não encontrado.")
+            retirada = session.query(RetiradaMaterial).filter_by(
+                ordem_servico=ordem_servico,
+                produto_id=produto.id,
+                tecnico_id=tecnico_id
+            ).first()
+
+            if retirada is None:
+                QMessageBox.warning(self, "Erro",
+                                    "Não há registro de retirada com esta ordem de serviço para este produto e técnico.")
                 return
 
-            retirada = session.query(RetiradaMaterial).filter_by(ordem_servico=ordem_servico, produto_id=produto_id, tecnico_id=tecnico.id).first()
-            if retirada is None:
-                QMessageBox.warning(self, "Erro", "Não há registro de retirada com esta ordem de serviço para este produto e técnico.")
+            retorno_existente = session.query(RetornoMaterial).filter_by(
+                ordem_servico=ordem_servico,
+                produto_id=produto.id,
+                tecnico_id=tecnico_id
+            ).first()
+
+            if retorno_existente:
+                QMessageBox.warning(self, "Erro", "O material já foi retornado anteriormente.")
                 return
+
+            if patrimonio:
+                material_existente = session.query(Material).filter_by(patrimonio=patrimonio).first()
+                if material_existente:
+                    material_existente.quantidade += quantidade
+                else:
+                    novo_material = Material(
+                        nome=produto.nome,
+                        preco=0.0,
+                        quantidade=quantidade,
+                        patrimonio=patrimonio,
+                        nota_fiscal=""  # Atualize conforme necessário
+                    )
+                    session.add(novo_material)
+                session.commit()
 
             retorno = RetornoMaterial(
                 ordem_servico=ordem_servico,
-                produto_id=produto_id,
-                tecnico_id=tecnico.id,
+                produto_id=produto.id,
+                tecnico_id=tecnico_id,
                 quantidade=quantidade,
                 data_retorno=data_retorno,
-                data=datetime.utcnow().date()  # Adiciona a data atual
+                data=datetime.utcnow().date()
             )
             session.add(retorno)
 
             produto.quantidade += quantidade
-            retirada.devolvido = True  # Atualizar o status de devolução
+            retirada.devolvido = True
             session.commit()
 
             QMessageBox.information(self, "Sucesso", "Retorno registrado com sucesso.")
-            self.material_returned.emit()  # Emitir o sinal de material devolvido
-            self.close()
+            self.material_returned.emit()
+
+            # Clear fields
+            self.ordem_servico_input.clear()
+            self.cmb_produto.setCurrentIndex(0)
+            self.cmb_tecnico.setCurrentIndex(0)
+            self.quantidade_input.clear()
+            self.patrimonio_input.clear()
+            self.data_retorno_input.setDate(QDate.currentDate())
+
+            self.populate_produtos()
+            self.populate_tecnicos()
 
         except Exception as e:
             session.rollback()
@@ -133,7 +231,7 @@ class RetornoMaterialWindow(QWidget):
         finally:
             session.close()
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = RetornoMaterialWindow()
     window.show()

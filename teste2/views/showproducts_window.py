@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QLineEdit, QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QLineEdit, QWidget, QVBoxLayout, QLabel, QPushButton, QTableWidget, QTableWidgetItem, QGroupBox, QHBoxLayout
 from models import Material, Fornecedor
 from utils.db_utils import Session
 from PyQt5.QtCore import Qt
@@ -11,6 +11,7 @@ class ShowProductsWindow(QWidget):
         self.setGeometry(100, 100, 800, 600)
 
         self.initUI()
+        self.apply_styles()
 
     def initUI(self):
         layout = QVBoxLayout()
@@ -20,39 +21,98 @@ class ShowProductsWindow(QWidget):
         title_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(title_label)
 
-        # Campo de pesquisa
-        self.search_label = QLabel('Pesquisar Produto:', self)
+        # Grupo de Pesquisa
+        search_group = QGroupBox('Pesquisar Produto')
+        search_layout = QHBoxLayout()
         self.search_input = QLineEdit(self)
+        self.search_input.setPlaceholderText('Digite o nome do produto')
         self.search_button = QPushButton('Pesquisar', self)
         self.search_button.clicked.connect(self.search_products)
-
-        layout.addWidget(self.search_label)
-        layout.addWidget(self.search_input)
-        layout.addWidget(self.search_button)
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(self.search_button)
+        search_group.setLayout(search_layout)
+        layout.addWidget(search_group)
 
         # Tabela para exibir produtos
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(8)  # Número de colunas
 
         # Definindo os cabeçalhos da tabela
-        headers = ['ID', 'Nome', 'Preço', 'Nota Fiscal', 'Quantidade', 'Data', 'Fornecedor','Patrimônio']
+        headers = ['ID', 'Nome', 'Preço', 'Nota Fiscal', 'Quantidade', 'Data', 'Fornecedor', 'Patrimônio']
         self.table_widget.setHorizontalHeaderLabels(headers)
-
         layout.addWidget(self.table_widget)
 
-        # Botão para atualizar a lista de produtos
+        # Grupo de Ações
+        actions_group = QGroupBox('Ações')
+        actions_layout = QHBoxLayout()
         update_button = QPushButton('Atualizar Lista', self)
         update_button.clicked.connect(self.update_product_list)
-        layout.addWidget(update_button)
-
         close_button = QPushButton('Fechar')
         close_button.clicked.connect(self.close)
-        layout.addWidget(close_button)
+        actions_layout.addWidget(update_button)
+        actions_layout.addWidget(close_button)
+        actions_group.setLayout(actions_layout)
+        layout.addWidget(actions_group)
 
         self.setLayout(layout)
 
         # Atualizar a lista de produtos ao exibir a janela
         self.update_product_list()
+
+    def apply_styles(self):
+        # Estilo geral da aplicação
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #f0f8ff;
+                font-family: Arial, sans-serif;
+                font-size: 14px;
+            }
+            QLabel#title_label {
+                font-size: 24px;
+                font-weight: bold;
+                color: #4682b4;
+                margin-bottom: 20px;
+            }
+            QGroupBox {
+                border: 1px solid #4682b4;
+                border-radius: 5px;
+                margin-top: 10px;
+                padding: 10px;
+            }
+            QGroupBox::title {
+                color: #4682b4;
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding: 0 3px;
+            }
+            QLineEdit {
+                border: 1px solid #4682b4;
+                border-radius: 5px;
+                padding: 5px;
+                margin-right: 10px;
+            }
+            QPushButton {
+                background-color: #4682b4;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px;
+                margin: 5px;
+            }
+            QPushButton:hover {
+                background-color: #5a9bd5;
+            }
+            QTableWidget {
+                border: 1px solid #4682b4;
+                border-radius: 5px;
+            }
+            QHeaderView::section {
+                background-color: #4682b4;
+                color: white;
+                padding: 4px;
+                border: 1px solid #4682b4;
+            }
+        """)
 
     def search_products(self):
         search_text = self.search_input.text().strip()

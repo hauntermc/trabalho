@@ -1,4 +1,5 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QMessageBox, QLabel
+from PyQt5.QtCore import Qt
 from controllers.tecnico_controller import register_tecnico
 
 class TecnicoRegistrationWindow(QWidget):
@@ -9,7 +10,7 @@ class TecnicoRegistrationWindow(QWidget):
 
     def init_ui(self):
         self.setWindowTitle('Registrar Técnico')
-        self.setGeometry(200, 200, 400, 200)
+        self.setGeometry(200, 200, 400, 250)
 
         # Layout principal
         layout = QVBoxLayout()
@@ -40,6 +41,39 @@ class TecnicoRegistrationWindow(QWidget):
         # Adicionando o layout principal ao widget
         self.setLayout(layout)
 
+        # Estilizar a interface
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #f0f8ff;  /* Azul claro */
+                font-family: Arial, sans-serif;
+            }
+            QLabel {
+                color: #003d7a;  /* Azul escuro */
+                font-size: 16px;
+                font-weight: bold;
+            }
+            QLineEdit {
+                padding: 10px;
+                border: 1px solid #003d7a;  /* Azul escuro */
+                border-radius: 5px;
+                background-color: #ffffff;  /* Branco */
+                margin-bottom: 15px;
+            }
+            QPushButton {
+                background-color: #003d7a;  /* Azul escuro */
+                color: white;
+                padding: 10px;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                cursor: pointer;
+                margin-top: 10px;
+            }
+            QPushButton:hover {
+                background-color: #00264d;  /* Azul mais escuro */
+            }
+        """)
+
     def registrar_tecnico(self):
         nome = self.nome_input.text().strip()
         telefone = self.telefone_input.text().strip()
@@ -66,4 +100,3 @@ class TecnicoRegistrationWindow(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, 'Erro', f'Erro ao registrar técnico {nome}. Detalhes: {str(e)}')
-

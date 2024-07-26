@@ -1,9 +1,9 @@
-from PyQt5.QtWidgets import QWidget, QLineEdit, QPushButton, QVBoxLayout, QLabel, QMessageBox
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import QWidget, QLineEdit, QPushButton, QVBoxLayout, QLabel, QMessageBox, QSpacerItem, QSizePolicy
+from PyQt5.QtCore import pyqtSignal, Qt
+from PyQt5.QtGui import QFont
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine
 from models import Usuario  # Certifique-se de que 'models' é o nome do seu arquivo de modelos e 'Usuario' é o nome da classe
-
 
 class RegisterWindow(QWidget):
     # Sinal personalizado para indicar que a janela foi fechada
@@ -13,34 +13,84 @@ class RegisterWindow(QWidget):
         super().__init__(parent)
 
         self.setWindowTitle('Registro de Usuário')
-        self.setGeometry(100, 100, 300, 200)
+        self.setGeometry(100, 100, 400, 400)
+        self.initUI()
 
-        self.username_label = QLabel('Username:', self)
+    def initUI(self):
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(10)
+
+        # Título
+        title_label = QLabel('Registro de Usuário')
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setFont(QFont('Arial', 18, QFont.Bold))
+        title_label.setStyleSheet("color: #333;")
+        layout.addWidget(title_label)
+
+        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        # Campo de nome de usuário
+        username_label = QLabel('Nome de Usuário:', self)
+        username_label.setFont(QFont('Arial', 12))
+        username_label.setStyleSheet("color: #555;")
         self.username_input = QLineEdit(self)
+        self.username_input.setFont(QFont('Arial', 12))
+        self.username_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.username_input.setStyleSheet("background-color: #FAFAFA; border: 1px solid #DDDDDD; border-radius: 5px; padding: 10px;")
+        layout.addWidget(username_label)
+        layout.addWidget(self.username_input)
 
-        self.password_label = QLabel('Password:', self)
+        layout.addSpacerItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        # Campo de senha
+        password_label = QLabel('Senha:', self)
+        password_label.setFont(QFont('Arial', 12))
+        password_label.setStyleSheet("color: #555;")
         self.password_input = QLineEdit(self)
+        self.password_input.setFont(QFont('Arial', 12))
         self.password_input.setEchoMode(QLineEdit.Password)
+        self.password_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.password_input.setStyleSheet("background-color: #FAFAFA; border: 1px solid #DDDDDD; border-radius: 5px; padding: 10px;")
+        layout.addWidget(password_label)
+        layout.addWidget(self.password_input)
 
-        self.confirm_password_label = QLabel('Confirm Password:', self)
+        layout.addSpacerItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        # Campo de confirmação de senha
+        confirm_password_label = QLabel('Confirmar Senha:', self)
+        confirm_password_label.setFont(QFont('Arial', 12))
+        confirm_password_label.setStyleSheet("color: #555;")
         self.confirm_password_input = QLineEdit(self)
+        self.confirm_password_input.setFont(QFont('Arial', 12))
         self.confirm_password_input.setEchoMode(QLineEdit.Password)
+        self.confirm_password_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.confirm_password_input.setStyleSheet("background-color: #FAFAFA; border: 1px solid #DDDDDD; border-radius: 5px; padding: 10px;")
+        layout.addWidget(confirm_password_label)
+        layout.addWidget(self.confirm_password_input)
 
-        self.register_button = QPushButton('Register', self)
-        self.cancel_button = QPushButton('Cancel', self)
+        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
-        self.layout = QVBoxLayout(self)
-        self.layout.addWidget(self.username_label)
-        self.layout.addWidget(self.username_input)
-        self.layout.addWidget(self.password_label)
-        self.layout.addWidget(self.password_input)
-        self.layout.addWidget(self.confirm_password_label)
-        self.layout.addWidget(self.confirm_password_input)
-        self.layout.addWidget(self.register_button)
-        self.layout.addWidget(self.cancel_button)
-
+        # Botões de Registrar e Cancelar
+        self.register_button = QPushButton('Registrar', self)
+        self.register_button.setFont(QFont('Arial', 14))
+        self.register_button.setStyleSheet("background-color: #28A745; color: white; border-radius: 5px; padding: 10px 20px;")
         self.register_button.clicked.connect(self.register)
+        self.register_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        layout.addWidget(self.register_button)
+
+        layout.addSpacerItem(QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        self.cancel_button = QPushButton('Cancelar', self)
+        self.cancel_button.setFont(QFont('Arial', 14))
+        self.cancel_button.setStyleSheet("background-color: #DC3545; color: white; border-radius: 5px; padding: 10px 20px;")
         self.cancel_button.clicked.connect(self.close)
+        self.cancel_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        layout.addWidget(self.cancel_button)
+
+        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        self.setLayout(layout)
 
     def register(self):
         username = self.username_input.text()

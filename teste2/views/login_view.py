@@ -1,6 +1,8 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel, QHBoxLayout, QSizePolicy, QSpacerItem, QMessageBox
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont, QGuiApplication
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel,
+                             QHBoxLayout, QSizePolicy, QSpacerItem, QMessageBox,
+                             QGraphicsDropShadowEffect)
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QFont, QGuiApplication, QColor
 import qt_material
 from controllers.login_controller import login_user
 from views.register_view import RegisterWindow
@@ -12,74 +14,87 @@ class LoginWindow(QWidget):
         self.register_window = None
         self.initUI()
         qt_material.apply_stylesheet(self, theme='light_blue.xml')
-        self.setWindowFlags(Qt.Window | Qt.CustomizeWindowHint | Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
-        self.setFixedSize(400, 300)
         self.center()
 
     def initUI(self):
         layout = QVBoxLayout()
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(20)
+        layout.setContentsMargins(30, 30, 30, 30)
+        layout.setSpacing(10)
 
         # Título
         title_label = QLabel('SISTEMA DE CONTROLE DE MATERIAIS')
+        title_label.setFont(QFont('Segoe UI', 24, QFont.Bold))  # Tamanho de fonte ajustado
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setFont(QFont('Arial', 36, QFont.Bold))
-        title_label.setStyleSheet("color: #333;")
+        title_label.setStyleSheet("""
+            color: #333;  /* Cor do texto */
+            font-size: 24px; /* Tamanho da fonte */
+            padding: 15px;  /* Espaçamento interno */
+            font-weight: bold;  /* Negrito */
+        """)
+        title_label.setGraphicsEffect(self.create_shadow_effect())  # Adiciona sombra ao texto
+
         layout.addWidget(title_label)
 
         layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         # Campo de usuário
         label_username = QLabel('Usuário')
-        label_username.setFont(QFont('Arial', 14))
+        label_username.setFont(QFont('Arial', 12))
         label_username.setStyleSheet("color: #555;")
         self.username_input = QLineEdit(self)
-        self.username_input.setFont(QFont('Arial', 14))
+        self.username_input.setFont(QFont('Arial', 12))
         self.username_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.username_input.setStyleSheet("background-color: #FAFAFA; border: 1px solid #DDDDDD; border-radius: 8px; padding: 5px;")
-        layout.addWidget(label_username)
-        layout.addWidget(self.username_input)
+        self.username_input.setStyleSheet("background-color: #FAFAFA; border: 1px solid #DDDDDD; border-radius: 5px; padding: 10px;")
+        self.username_input.setMaximumWidth(300)  # Define largura máxima
+        self.username_input.setMinimumWidth(200)  # Define largura mínima
+        self.username_input.returnPressed.connect(self.login)  # Conectar Enter ao método de login
+        layout.addWidget(label_username, 0, Qt.AlignCenter)  # Centraliza o rótulo
+        layout.addWidget(self.username_input, 0, Qt.AlignCenter)  # Centraliza o campo de entrada
 
         layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         # Campo de senha
         label_password = QLabel('Senha')
-        label_password.setFont(QFont('Arial', 14))
+        label_password.setFont(QFont('Arial', 12))
         label_password.setStyleSheet("color: #555;")
         self.password_input = QLineEdit(self)
-        self.password_input.setFont(QFont('Arial', 14))
+        self.password_input.setFont(QFont('Arial', 12))
         self.password_input.setEchoMode(QLineEdit.Password)
         self.password_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.password_input.setStyleSheet("background-color: #FAFAFA; border: 1px solid #DDDDDD; border-radius: 8px; padding: 5px;")
-        layout.addWidget(label_password)
-        layout.addWidget(self.password_input)
+        self.password_input.setStyleSheet("background-color: #FAFAFA; border: 1px solid #DDDDDD; border-radius: 5px; padding: 10px;")
+        self.password_input.setMaximumWidth(300)  # Define largura máxima
+        self.password_input.setMinimumWidth(200)  # Define largura mínima
+        self.password_input.returnPressed.connect(self.login)  # Conectar Enter ao método de login
+        layout.addWidget(label_password, 0, Qt.AlignCenter)  # Centraliza o rótulo
+        layout.addWidget(self.password_input, 0, Qt.AlignCenter)  # Centraliza o campo de entrada
 
         layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
-        # Botões de Login e Register
+        # Botões de Login
         buttons_layout = QHBoxLayout()
-        buttons_layout.setSpacing(20)
+        buttons_layout.setSpacing(10)
 
         self.login_button = QPushButton('Login', self)
         self.login_button.setFont(QFont('Arial', 14))
-        self.login_button.setStyleSheet("background-color: #007BFF; color: white; border-radius: 8px; padding: 10px;")
+        self.login_button.setStyleSheet("background-color: #007BFF; color: white; border-radius: 5px; padding: 10px 20px;")
+        self.login_button.setMaximumWidth(150)  # Define largura máxima
+        self.login_button.setMinimumWidth(100)  # Define largura mínima
         self.login_button.clicked.connect(self.login)
         self.login_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        buttons_layout.addWidget(self.login_button)
-
-        self.register_button = QPushButton('Registrar', self)
-        self.register_button.setFont(QFont('Arial', 14))
-        self.register_button.setStyleSheet("background-color: #28A745; color: white; border-radius: 8px; padding: 10px;")
-        self.register_button.clicked.connect(self.register)
-        self.register_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
-        buttons_layout.addWidget(self.register_button)
+        buttons_layout.addWidget(self.login_button, 0, Qt.AlignCenter)  # Centraliza o botão
 
         layout.addLayout(buttons_layout)
 
         layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         self.setLayout(layout)
+
+    def create_shadow_effect(self):
+        shadow_effect = QGraphicsDropShadowEffect()
+        shadow_effect.setBlurRadius(10)
+        shadow_effect.setOffset(2, 2)
+        shadow_effect.setColor(QColor(0, 0, 0, 50))  # Cor da sombra com transparência
+        return shadow_effect
 
     def login(self):
         username = self.username_input.text()
@@ -89,15 +104,12 @@ class LoginWindow(QWidget):
         else:
             self.show_error_message("Usuário ou senha incorretos.")
 
-    def register(self):
-        try:
-            if self.register_window is None or not self.register_window.isVisible():
-                if self.register_window is None:
-                    self.register_window = RegisterWindow(self)
-                    self.register_window.destroyed.connect(self.on_register_window_closed)
-                self.register_window.show()
-        except Exception as e:
-            self.show_error_message(f"Erro ao abrir a tela de registro: {e}")
+    def open_register_window(self):
+        if self.register_window is None or not self.register_window.isVisible():
+            if self.register_window is None:
+                self.register_window = RegisterWindow(self)
+                self.register_window.register_window_closed.connect(self.on_register_window_closed)
+            self.register_window.show()
 
     def on_register_window_closed(self):
         self.register_window = None

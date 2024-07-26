@@ -27,16 +27,17 @@ class Material(Base):
     __tablename__ = 'materiais'
 
     id = Column(Integer, primary_key=True)
-    nome = Column(String, nullable=False)
+    nome = Column(String, nullable=False, unique=True)  # Garantir unicidade do nome
     preco = Column(Float, nullable=False)
-    nota_fiscal = Column(String, nullable=False, unique=True)  # Nota fiscal deve ser única
-    quantidade = Column(Integer, nullable=False)
+    nota_fiscal = Column(String, nullable=True)  # Nota fiscal opcional
+    quantidade = Column(Integer, nullable=False)  # Permite valores zero
     data = Column(DateTime, default=datetime.utcnow)
     fornecedor_id = Column(Integer, ForeignKey('fornecedores.id'))
     fornecedor = relationship('Fornecedor', back_populates='materiais')
     retiradas = relationship('RetiradaMaterial', back_populates='produto')
     retornos = relationship('RetornoMaterial', back_populates='produto')
     patrimonio = Column(String)
+    estoque_minimo = Column(Integer, nullable=False)
 
 class Tecnico(Base):
     __tablename__ = 'tecnicos'
