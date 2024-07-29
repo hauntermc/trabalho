@@ -1,8 +1,74 @@
+from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QApplication,
-                             QGridLayout, QFileDialog, QMessageBox)
+                             QFileDialog, QMessageBox, QInputDialog, QLabel, QGridLayout)
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import QIcon, QPixmap
-from utils.pdf_utils import generate_form_pdf  # Certifique-se de que o caminho esteja correto
+from PyQt5.QtGui import QPixmap, QIcon
+import fitz  # PyMuPDF
+import os
+from sqlalchemy.orm import Session
+
+from models import Material, Tecnico, RetiradaMaterial
+from utils.pdf_utils import generate_form_pdf
+from utils.db_utils import Session
+
+
+class PDFViewer(QWidget):
+    def __init__(self, file_path, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('Visualizador de PDF')
+        self.setGeometry(100, 100, 800, 600)
+
+        layout = QVBoxLayout()
+
+        # Label para exibir o PDF
+        self.pdf_label = QLabel(self)
+        layout.addWidget(self.pdf_label)
+
+        # Botão de Impressão
+        self.print_button = QPushButton('Imprimir PDF', self)
+        self.print_button.clicked.connect(self.print_pdf)
+        layout.addWidget(self.print_button)
+
+        self.setLayout(layout)
+
+        self.show_pdf(file_path)
+
+    def show_pdf(self, file_path):
+        # Verifica se o arquivo existe
+        if not os.path.exists(file_path):
+            QMessageBox.critical(self, 'Erro', 'O arquivo PDF não foi encontrado.')
+            return
+
+        # Abre o PDF e exibe a primeira página
+        pdf_document = fitz.open(file_path)
+        if pdf_document.page_count > 0:
+            page = pdf_document.load_page(0)  # Carrega a primeira página
+            pix = page.get_pixmap()
+            img_path = file_path + '.png'
+            pix.save(img_path)
+
+            pixmap = QPixmap(img_path)
+            self.pdf_label.setPixmap(pixmap)
+            os.remove(img_path)  # Remove a imagem temporária
+        else:
+            QMessageBox.warning(self, 'Erro', 'O PDF está vazio ou não contém páginas.')
+
+    def print_pdf(self):
+        # Cria um objeto QPrinter
+        printer = QPrinter()
+        printer.setPageSize(QPrinter.A4)
+        printer.setOrientation(QPrinter.Portrait)
+
+        # Abre o diálogo de impressão
+        print_dialog = QPrintDialog(printer, self)
+        if print_dialog.exec_() == QPrintDialog.Accepted:
+            # Configure a impressão
+            pdf_document = fitz.open(self.file_path)
+            if pdf_document.page_count > 0:
+                page = pdf_document.load_page(0)  # Carrega a primeira página
+                pdf_document.save(printer, deflate=False, incremental=True)
+            else:
+                QMessageBox.warning(self, 'Erro', 'O PDF está vazio ou não contém páginas.')
 
 
 class AfterLoginScreen(QWidget):
@@ -56,6 +122,9 @@ class AfterLoginScreen(QWidget):
         self.btn_mostrar_estoque = QPushButton('Mostrar Estoque Total')
         self.btn_adicionar_usuario = QPushButton('Adicionar Novo Usuário')
         self.btn_gerar_pdf = QPushButton('Gerar PDF')
+        self.btn_procurar_pdf = QPushButton('Procurar PDF')
+
+        self.btn_procurar_pdf.clicked.connect(self.procurar_pdf)
         self.btn_gerar_pdf.clicked.connect(self.gerar_pdf)
 
         # Adicionar ícone ao botão de logout com redimensionamento da imagem
@@ -89,6 +158,12 @@ class AfterLoginScreen(QWidget):
         button_layout2.addWidget(self.btn_mostrar_estoque)
         button_layout2.addWidget(self.btn_adicionar_usuario)
         button_layout2.addWidget(self.btn_gerar_pdf)
+        button_layout2.addWidget(self.btn_procurar_pdf)
+
+        #Criar um label para a imagem
+        self.image_label = QLabel()
+        self.set_image('C:/Users/Detel/Desktop/logo-pjerj-preto.png') #Caminho da imagem
+
 
         # Layout principal
         main_layout = QGridLayout()
@@ -129,22 +204,59 @@ class AfterLoginScreen(QWidget):
         self.btn_adicionar_usuario.setEnabled(False)
 
     def gerar_pdf(self):
-        # Abre um diálogo para escolher o local e nome do arquivo PDF
-        options = QFileDialog.Options()
-        file_name, _ = QFileDialog.getSaveFileName(self, "Salvar PDF", "", "PDF Files (*.pdf);;All Files (*)",
-                                                   options=options)
+        ordem_servico, ok = QInputDialog.getText(self, 'Ordem de Serviço', 'Digite a ordem de serviço:')
+        if ok and ordem_servico:
+            options = QFileDialog.Options()
+            file_name, _ = QFileDialog.getSaveFileName(self, "Salvar PDF", f"{ordem_servico}.pdf",
+                                                       "PDF Files (*.pdf);;All Files (*)",
+                                                       options=options)
 
-        if file_name:
-            try:
-                # Chama a função para gerar o PDF
-                generate_form_pdf(file_name)
-                QMessageBox.information(self, 'PDF Gerado', 'O PDF foi gerado com sucesso!')
-            except Exception as e:
-                QMessageBox.critical(self, 'Erro ao Gerar PDF', f'Ocorreu um erro ao gerar o PDF: {e}')
+            if file_name:
+                try:
+                    # Obtém uma sessão do banco de dados
+                    session = Session()
 
+                    # Recupera a informação da retirada com base na ordem de serviço
+                    retirada = session.query(RetiradaMaterial).filter_by(ordem_servico=ordem_servico).first()
 
-if __name__ == "__main__":
-    app = QApplication([])
-    window = AfterLoginScreen()
-    window.show()
-    app.exec_()
+                    if retirada:
+                        material_info = {
+                            'data_retirada': retirada.data.strftime('%d/%m/%Y'),
+                            'nome_tecnico': retirada.tecnico.nome,
+                            'matricula_tecnico': retirada.tecnico.matricula,
+                            'local_destino': retirada.local,
+                            'numero_patrimonio': retirada.patrimonio
+                        }
+
+                        # Gera o PDF
+                        generate_form_pdf(file_name, ordem_servico, material_info)
+                        QMessageBox.information(self, 'PDF Gerado', 'O PDF foi gerado com sucesso!')
+                    else:
+                        QMessageBox.warning(self, 'Retirada Não Encontrada',
+                                            'Nenhuma retirada encontrada para a ordem de serviço fornecida.')
+
+                except Exception as e:
+                    QMessageBox.critical(self, 'Erro ao Gerar PDF', f'Ocorreu um erro ao gerar o PDF: {e}')
+            else:
+                QMessageBox.warning(self, 'Nome do Arquivo Inválido', 'O nome do arquivo não pode ser vazio.')
+        else:
+            QMessageBox.warning(self, 'Ordem de Serviço Inválida', 'Ordem de serviço não fornecida.')
+
+    def procurar_pdf(self):
+        # Adiciona um diálogo para obter a ordem de serviço
+        ordem_servico, ok = QInputDialog.getText(self, 'Ordem de Serviço', 'Digite a ordem de serviço:')
+        if ok and ordem_servico:
+            # Verifica se o arquivo PDF existe com o nome da ordem de serviço
+            self.pdf_path = f"{ordem_servico}.pdf"  # Defina o diretório onde os PDFs estão armazenados
+            if os.path.exists(self.pdf_path):
+                # Cria uma janela para mostrar o PDF
+                self.pdf_viewer = PDFViewer(self.pdf_path)
+                self.pdf_viewer.show()
+            else:
+                QMessageBox.warning(self, 'Arquivo Não Encontrado',
+                                    'Nenhum arquivo PDF encontrado para a ordem de serviço fornecida.')
+
+    def set_image(self, image_path):
+        pixmap = QPixmap(image_path)
+        self.image_label.setPixmap(pixmap)
+        self.image_label.setAlignment(Qt.AlignCenter)

@@ -193,14 +193,9 @@ class MainWindow(QStackedWidget):
             if window:
                 window.close()
 
-    def gerar_pdf(self):
-        # Abre uma caixa de diálogo para escolher o local e nome do arquivo PDF
-        options = QFileDialog.Options()
-        filename, _ = QFileDialog.getSaveFileName(self, "Salvar PDF", "", "PDF Files (*.pdf);;All Files (*)",
-                                                  options=options)
-        if filename:
-            generate_form_pdf(filename)
-            print("PDF gerado com sucesso!")
+    def update_products(self):
+        # Atualizar o QComboBox de produtos
+        self.material_withdraw_window.update_products()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

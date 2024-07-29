@@ -1,8 +1,8 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLineEdit, QPushButton, QLabel,
                              QHBoxLayout, QSizePolicy, QSpacerItem, QMessageBox,
-                             QGraphicsDropShadowEffect)
+                             QGraphicsDropShadowEffect, QFileDialog, QApplication)
 from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QFont, QGuiApplication, QColor
+from PyQt5.QtGui import QFont, QGuiApplication, QColor, QPixmap
 import qt_material
 from controllers.login_controller import login_user
 from views.register_view import RegisterWindow
@@ -35,7 +35,17 @@ class LoginWindow(QWidget):
 
         layout.addWidget(title_label)
 
-        layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        # Imagem
+        image_label = QLabel(self)
+        pixmap = QPixmap('C:/Users/Detel/Desktop/teste2/logo-pjerj-preto.png')  # Substitua pelo caminho da sua imagem
+        scaled_pixmap = pixmap.scaled(200, 200, Qt.KeepAspectRatio, Qt.SmoothTransformation)  # Redimensiona a imagem
+        image_label.setPixmap(scaled_pixmap)
+        image_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(image_label)
+
+        layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         # Campo de usuário
         label_username = QLabel('Usuário')
@@ -128,3 +138,11 @@ class LoginWindow(QWidget):
         widget_geometry = self.geometry()
         widget_geometry.moveCenter(screen_geometry.center())
         self.setGeometry(widget_geometry)
+
+if __name__ == '__main__':
+    import sys
+
+    app = QApplication(sys.argv)
+    window = LoginWindow()
+    window.show()
+    sys.exit(app.exec_())
