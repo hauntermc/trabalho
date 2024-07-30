@@ -5,12 +5,15 @@ from datetime import datetime
 from sqlalchemy.orm.exc import NoResultFound
 from utils.db_utils import Session
 from models import Material, Tecnico, RetiradaMaterial
+from utils.pdf_utils import generate_form_pdf
+from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
+import os
 
 class MaterialWithdrawWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Retirar Material')
-        self.setGeometry(200, 200, 500, 400)
+        self.setGeometry(200, 200, 500, 500)  # Ajustado para incluir o novo botão
         self.initUI()
 
     def initUI(self):
@@ -99,6 +102,26 @@ class MaterialWithdrawWindow(QWidget):
         """)
         btn_retirar.clicked.connect(self.retirar_material)
         layout.addWidget(btn_retirar)
+
+        # Botão para imprimir a retirada
+        self.btn_imprimir = QPushButton('Imprimir Retirada')
+        self.btn_imprimir.setStyleSheet("""
+            QPushButton {
+                background-color: #003d7a;
+                color: white;
+                padding: 10px;
+                border: none;
+                border-radius: 5px;
+                font-size: 16px;
+                cursor: pointer;
+                margin-top: 10px;
+            }
+            QPushButton:hover {
+                background-color: #00264d;
+            }
+        """)
+        self.btn_imprimir.clicked.connect(self.imprimir_retirada)
+        layout.addWidget(self.btn_imprimir)
 
         # Botões para atualizar listas
         btn_atualizar_produtos = QPushButton('Atualizar Produtos')
@@ -297,6 +320,61 @@ class MaterialWithdrawWindow(QWidget):
 
         except Exception as e:
             QMessageBox.critical(self, 'Erro', f'Erro ao atualizar técnicos: {e}')
+        finally:
+            if session:
+                session.close()
+
+    def imprimir_retirada(self):
+        session = None
+        try:
+            ordem_servico = self.txt_ordem_servico.text().strip()
+            if not ordem_servico:
+                QMessageBox.warning(self, 'Erro', 'O código da ordem de serviço deve ser preenchido para gerar o PDF!')
+                return
+
+            # Nome do arquivo PDF
+            filename = f'retirada_{ordem_servico}.pdf'
+
+            tecnico_id = self.cmb_tecnico.currentData()
+
+            if not tecnico_id:
+                QMessageBox.warning(self, 'Erro', 'Selecione um técnico para gerar o PDF!')
+                return
+
+            session = Session()
+
+            # Buscar o técnico pelo ID para obter a matrícula
+            try:
+                tecnico = session.query(Tecnico).filter_by(id=tecnico_id).one()
+            except NoResultFound:
+                QMessageBox.warning(self, 'Erro', 'Técnico não encontrado!')
+                return
+
+            # Dados para o PDF
+            material_info = {
+                'data_retirada': datetime.now().strftime('%d/%m/%Y'),
+                'nome_tecnico': tecnico.nome,
+                'matricula_tecnico': tecnico.matricula,  # Adiciona a matrícula do técnico
+                'responsavel_controle': '',  # Substitua pelo valor real se disponível
+                'matricula_responsavel': '',  # Substitua pelo valor real
+                'local_destino': self.txt_local.text().strip(),
+                'numero_patrimonio': self.txt_patrimonio.text().strip(),
+                'tecnico_responsavel': tecnico.nome,
+                'matricula_tecnico_responsavel': tecnico.matricula,  # Adiciona a matrícula do técnico responsável
+                'supervisor_tecnico': '',  # Substitua pelo valor real
+                'matricula_supervisor': '',  # Substitua pelo valor real
+                'controle_materiais': '',  # Substitua pelo valor real
+                'matricula_controle': '',  # Substitua pelo valor real
+            }
+
+            # Gera o PDF
+            generate_form_pdf(filename, ordem_servico, material_info)
+
+            # Abre o PDF com o visualizador padrão do sistema
+            os.startfile(filename, 'open')  # No Windows
+
+        except Exception as e:
+            QMessageBox.critical(self, 'Erro', f'Erro ao gerar o PDF: {e}')
         finally:
             if session:
                 session.close()

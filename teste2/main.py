@@ -17,7 +17,7 @@ from views.material_withdraw_window import MaterialWithdrawWindow
 from views.retorno_material_view import RetornoMaterialWindow
 from views.show_estoque_total import ShowStockWindow
 from views.user_registration_view import UserRegistrationWindow
-
+from utils.db_utils import Session
 
 import logging
 
@@ -111,25 +111,26 @@ class MainWindow(QStackedWidget):
         self.addWidget(self.login_window)
         self.addWidget(self.after_login_screen)
 
-        self.after_login_screen.btn_registrar_produto.clicked.connect(
+        # Conectar os botões usando o dicionário all_buttons
+        self.after_login_screen.all_buttons['Registrar Produto'].clicked.connect(
             lambda: self.abrir_janela('material_registration', MaterialRegistrationWindow))
-        self.after_login_screen.btn_registrar_fornecedor.clicked.connect(
+        self.after_login_screen.all_buttons['Registrar Fornecedor'].clicked.connect(
             lambda: self.abrir_janela('fornecedor_registration', FornecedorRegistrationWindow))
-        self.after_login_screen.btn_registrar_tecnico.clicked.connect(
+        self.after_login_screen.all_buttons['Registrar Técnico'].clicked.connect(
             lambda: self.abrir_janela('tecnico_registration', TecnicoRegistrationWindow))
-        self.after_login_screen.btn_retirar_material.clicked.connect(
+        self.after_login_screen.all_buttons['Retirar Material'].clicked.connect(
             lambda: self.abrir_janela('material_withdraw', MaterialWithdrawWindow))
-        self.after_login_screen.btn_retorno_material.clicked.connect(
+        self.after_login_screen.all_buttons['Retorno de Material'].clicked.connect(
             lambda: self.abrir_janela('retorno_material', RetornoMaterialWindow))
-        self.after_login_screen.btn_mostrar_produto.clicked.connect(
+        self.after_login_screen.all_buttons['Mostrar Produtos'].clicked.connect(
             lambda: self.abrir_janela('show_products', ShowProductsWindow))
-        self.after_login_screen.btn_mostrar_tecnico.clicked.connect(
+        self.after_login_screen.all_buttons['Mostrar Técnicos'].clicked.connect(
             lambda: self.abrir_janela('show_tecnico', ShowTecnicoWindow))
-        self.after_login_screen.btn_mostrar_produtos_retirados.clicked.connect(
+        self.after_login_screen.all_buttons['Mostrar Produtos Retirados'].clicked.connect(
             lambda: self.abrir_janela('show_withdrawals', ShowWithdrawalsWindow))
-        self.after_login_screen.btn_mostrar_estoque.clicked.connect(
+        self.after_login_screen.all_buttons['Mostrar Estoque Total'].clicked.connect(
             lambda: self.abrir_janela('show_estoque', ShowStockWindow))
-        self.after_login_screen.btn_adicionar_usuario.clicked.connect(self.abrir_tela_registro_usuario)
+        self.after_login_screen.all_buttons['Adicionar Novo Usuário'].clicked.connect(self.abrir_tela_registro_usuario)
         self.after_login_screen.btn_logout.clicked.connect(self.confirm_logout)
 
         self.windows = {
@@ -160,9 +161,11 @@ class MainWindow(QStackedWidget):
         try:
             if not self.windows[janela_key]:
                 self.windows[janela_key] = janela_class()
-            self.windows[janela_key].show()  # Abre a janela
+            if not self.windows[janela_key].isVisible():
+                self.windows[janela_key].show()
+            logging.info(f"Janela '{janela_key}' aberta com sucesso.")
         except Exception as e:
-            logging.error(f"Erro ao abrir {janela_key}: {e}")
+            logging.error(f"Erro ao abrir a janela '{janela_key}': {e}")
 
     def confirm_logout(self):
         reply = QMessageBox.question(self, 'Confirmação',
@@ -173,19 +176,23 @@ class MainWindow(QStackedWidget):
             self.logout()
 
     def logout(self):
+        logging.info("Usuário realizando logout.")
         self.fechar_todas_as_janelas()
         self.setCurrentIndex(0)
 
     def closeEvent(self, event):
+        logging.info("Aplicativo fechado. Fechando todas as janelas.")
         self.fechar_todas_as_janelas()
         reply = QMessageBox.question(self, 'Confirmação',
                                      'Você realmente deseja sair?',
                                      QMessageBox.Yes | QMessageBox.No,
                                      QMessageBox.No)
         if reply == QMessageBox.Yes:
+            logging.info("Usuário confirmou a saída. Realizando logout.")
             self.logout()
             event.accept()
         else:
+            logging.info("Usuário cancelou a saída.")
             event.ignore()
 
     def fechar_todas_as_janelas(self):
