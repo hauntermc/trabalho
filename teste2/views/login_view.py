@@ -99,6 +99,8 @@ class LoginWindow(QWidget):
 
         self.setLayout(layout)
 
+        self.showMaximized()  # Abre a janela maximizada
+
     def create_shadow_effect(self):
         shadow_effect = QGraphicsDropShadowEffect()
         shadow_effect.setBlurRadius(10)

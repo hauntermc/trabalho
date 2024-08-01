@@ -14,11 +14,12 @@ def register_material(nome, preco, nota_fiscal, quantidade, fornecedor_nome, dat
             session.add(fornecedor)
             session.commit()  # Comita a adição do fornecedor
 
-        # Verifica se o material com o mesmo patrimônio já existe
-        material_existente_patrimonio = session.query(Material).filter_by(patrimonio=patrimonio).first()
-        if material_existente_patrimonio:
-            print(f"Erro: Patrimônio '{patrimonio}' já está registrado.")
-            return False
+        # Verifica se o material com o mesmo patrimônio já existe (se patrimônio fornecido)
+        if patrimonio:
+            material_existente_patrimonio = session.query(Material).filter_by(patrimonio=patrimonio).first()
+            if material_existente_patrimonio:
+                print(f"Erro: Patrimônio '{patrimonio}' já está registrado.")
+                return False
 
         # Verifica se o material com a mesma nota fiscal já existe
         material_existente_nota_fiscal = session.query(Material).filter_by(nota_fiscal=nota_fiscal).first()
@@ -26,30 +27,19 @@ def register_material(nome, preco, nota_fiscal, quantidade, fornecedor_nome, dat
             print(f"Erro: Nota fiscal '{nota_fiscal}' já está registrada.")
             return False
 
-        # Verifica se o material com o mesmo nome já existe
-        material_existente_nome = session.query(Material).filter_by(nome=nome).first()
-        if material_existente_nome:
-            # Atualiza a quantidade do material existente
-            material_existente_nome.quantidade += quantidade
-            material_existente_nome.preco = preco  # Atualiza o preço, se necessário
-            material_existente_nome.nota_fiscal = nota_fiscal  # Atualiza a nota fiscal, se necessário
-            material_existente_nome.data = data  # Atualiza a data, se necessário
-            session.commit()  # Comita a atualização
-            print(f"Quantidade do material '{nome}' atualizada com sucesso.")
-        else:
-            # Adiciona um novo material se não existir
-            novo_material = Material(
-                nome=nome,
-                preco=preco,
-                nota_fiscal=nota_fiscal,
-                quantidade=quantidade,
-                data=data,
-                fornecedor=fornecedor,
-                patrimonio=patrimonio
-            )
-            session.add(novo_material)
-            session.commit()  # Comita a adição do novo material
-            print(f"Material '{nome}' registrado com sucesso.")
+        # Adiciona um novo material
+        novo_material = Material(
+            nome=nome,
+            preco=preco,
+            nota_fiscal=nota_fiscal,
+            quantidade=quantidade,
+            data=data,
+            fornecedor=fornecedor,
+            patrimonio=patrimonio
+        )
+        session.add(novo_material)
+        session.commit()  # Comita a adição do novo material
+        print(f"Material '{nome}' registrado com sucesso.")
 
         return True
     except Exception as e:
@@ -69,6 +59,19 @@ def is_patrimonio_unique(patrimonio):
         return material is None
     except Exception as e:
         print(f"Erro ao verificar patrimônio: {str(e)}")
+        return False
+    finally:
+        if session:
+            session.close()
+
+def is_nota_fiscal_unique(nota_fiscal):
+    session = None
+    try:
+        session = Session()
+        material = session.query(Material).filter_by(nota_fiscal=nota_fiscal).first()
+        return material is None
+    except Exception as e:
+        print(f"Erro ao verificar nota fiscal: {str(e)}")
         return False
     finally:
         if session:

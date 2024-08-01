@@ -3,8 +3,10 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton, QTableWi
 from PyQt5.QtCore import Qt
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, or_
-from models import RetiradaMaterial, Material, Tecnico
+from models import RetiradaMaterial, Material, Tecnico, \
+    RetornoMaterial  # Supondo que RetornoMaterial seja a tabela para retornos
 from utils.db_utils import engine
+
 
 class ShowWithdrawalsWindow(QWidget):
     def __init__(self, parent=None):
@@ -108,8 +110,8 @@ class ShowWithdrawalsWindow(QWidget):
         Session = sessionmaker(bind=engine)
         try:
             with Session() as session:
-                query = session.query(RetiradaMaterial).join(Material, RetiradaMaterial.produto_id == Material.id)\
-                                                         .join(Tecnico, RetiradaMaterial.tecnico_id == Tecnico.id)
+                query = session.query(RetiradaMaterial).join(Material, RetiradaMaterial.produto_id == Material.id) \
+                    .join(Tecnico, RetiradaMaterial.tecnico_id == Tecnico.id)
 
                 if filter_text:
                     # Aplicar filtro na consulta
@@ -118,7 +120,8 @@ class ShowWithdrawalsWindow(QWidget):
                             RetiradaMaterial.id.like(f'%{filter_text}%'),
                             Material.nome.like(f'%{filter_text}%'),
                             Tecnico.nome.like(f'%{filter_text}%'),
-                            RetiradaMaterial.ordem_servico.like(f'%{filter_text}%')  # Incluindo filtro por Ordem de Serviço
+                            RetiradaMaterial.ordem_servico.like(f'%{filter_text}%')
+                            # Incluindo filtro por Ordem de Serviço
                         )
                     )
 
@@ -130,6 +133,19 @@ class ShowWithdrawalsWindow(QWidget):
                     tecnico = session.query(Tecnico).filter_by(id=retirada.tecnico_id).first()
 
                     data_formatada = retirada.data.strftime('%d/%m/%Y')
+
+                    # Verificar se a retirada foi devolvida
+                    devolvido = 'Não'
+                    retornos = session.query(RetornoMaterial).filter_by(
+                        ordem_servico=retirada.id,
+                        produto_id=retirada.produto_id,
+                        tecnico_id=retirada.tecnico_id
+                    ).all()
+
+                    quantidade_total_retorno = sum(retorno.quantidade for retorno in retornos)
+                    if quantidade_total_retorno > 0:  # Se houve qualquer retorno
+                        devolvido = 'Sim'
+
                     self.table_widget.setItem(row, 0, QTableWidgetItem(str(retirada.id)))
                     self.table_widget.setItem(row, 1, QTableWidgetItem(material.nome if material else 'Desconhecido'))
                     self.table_widget.setItem(row, 2, QTableWidgetItem(str(retirada.quantidade)))
@@ -138,7 +154,7 @@ class ShowWithdrawalsWindow(QWidget):
                     self.table_widget.setItem(row, 5, QTableWidgetItem(retirada.ordem_servico))
                     self.table_widget.setItem(row, 6, QTableWidgetItem(retirada.local))
                     self.table_widget.setItem(row, 7, QTableWidgetItem(str(retirada.patrimonio)))
-                    self.table_widget.setItem(row, 8, QTableWidgetItem('Sim' if retirada.devolvido else 'Não'))
+                    self.table_widget.setItem(row, 8, QTableWidgetItem(devolvido))
 
                 self.table_widget.resizeColumnsToContents()
 

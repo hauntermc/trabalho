@@ -15,7 +15,7 @@ class RetornoMaterialWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Retorno de Material")
-        self.setGeometry(200, 200, 400, 300)
+        self.setGeometry(200, 200, 500, 350)  # Aumentar altura e largura para acomodar novos campos
         self.initUI()
 
     def initUI(self):
@@ -30,14 +30,14 @@ class RetornoMaterialWindow(QWidget):
         self.ordem_servico_input = QComboBox()
         self.form_layout.addRow(self.ordem_servico_label, self.ordem_servico_input)
 
-        # Nome do Produto
+        # Nome do Produto ComboBox
         self.produto_label = QLabel("Nome do Produto:")
-        self.produto_input = QLineEdit()
+        self.produto_input = QComboBox()
         self.form_layout.addRow(self.produto_label, self.produto_input)
 
-        # Nome do Técnico
+        # Nome do Técnico ComboBox
         self.tecnico_label = QLabel("Nome do Técnico:")
-        self.tecnico_input = QLineEdit()
+        self.tecnico_input = QComboBox()
         self.form_layout.addRow(self.tecnico_label, self.tecnico_input)
 
         # Quantidade
@@ -62,7 +62,7 @@ class RetornoMaterialWindow(QWidget):
 
         # Update Button
         self.update_button = QPushButton("Atualizar")
-        self.update_button.clicked.connect(self.update_ordem_servico)
+        self.update_button.clicked.connect(self.update_comboboxes)
 
         # Add form layout to main layout
         main_layout.addLayout(self.form_layout)
@@ -104,38 +104,51 @@ class RetornoMaterialWindow(QWidget):
             }
         """)
 
-        # Preencher o ComboBox de Ordem de Serviço
-        self.update_ordem_servico()
+        # Preencher os ComboBoxes
+        self.update_comboboxes()
 
-    def update_ordem_servico(self):
+    def update_comboboxes(self):
         session = None
         try:
             session = Session()
-            # Consulta para obter as ordens de serviço que ainda não foram retornadas
+
+            # Atualizar Ordem de Serviço ComboBox
             ordens_servico = session.query(RetiradaMaterial).filter_by(devolvido=False).all()
-
-            # Limpa o combo box
             self.ordem_servico_input.clear()
-
-            # Adiciona as ordens de serviço ao combo box
             for ordem in ordens_servico:
                 self.ordem_servico_input.addItem(ordem.ordem_servico, ordem.id)
 
+            # Atualizar Produto ComboBox
+            produtos = session.query(RetiradaMaterial).filter_by(devolvido=False).join(Material).all()
+            self.produto_input.clear()
+            for retirada in produtos:
+                produto = retirada.produto
+                quantidade_ret = retirada.quantidade
+                patrimonio = produto.patrimonio if produto.patrimonio else "N/A"
+                self.produto_input.addItem(f"{produto.nome} - Qtd Retirada: {quantidade_ret}, Patrimônio: {patrimonio}",
+                                           produto.id)
+
+            # Atualizar Técnico ComboBox
+            tecnicos = session.query(Tecnico).all()
+            self.tecnico_input.clear()
+            for tecnico in tecnicos:
+                self.tecnico_input.addItem(tecnico.nome, tecnico.id)
+
         except Exception as e:
-            QMessageBox.critical(self, "Erro", f"Erro ao atualizar ordens de serviço: {e}")
+            QMessageBox.critical(self, "Erro", f"Erro ao atualizar dados: {e}")
         finally:
             if session:
                 session.close()
 
     def registrar_retorno(self):
         ordem_servico = self.ordem_servico_input.currentData()
-        produto_nome = self.produto_input.text().strip()
-        tecnico_nome = self.tecnico_input.text().strip()
+        produto_id = self.produto_input.currentData()
+        tecnico_id = self.tecnico_input.currentData()
         quantidade_text = self.quantidade_input.text().strip()
         data_retorno = self.data_retorno_input.date().toPyDate()
         patrimonio = self.patrimonio_input.text().strip()
 
-        if ordem_servico is None or not produto_nome or not tecnico_nome or not quantidade_text:
+        if ordem_servico is None or produto_id is None or tecnico_id is None or not quantidade_text:
             QMessageBox.warning(self, "Erro", "Todos os campos obrigatórios devem ser preenchidos.")
             return
 
@@ -148,12 +161,12 @@ class RetornoMaterialWindow(QWidget):
         session = Session()
 
         try:
-            produto = session.query(Material).filter_by(nome=produto_nome).first()
+            produto = session.query(Material).filter_by(id=produto_id).first()
             if produto is None:
                 QMessageBox.warning(self, "Erro", "Produto não encontrado.")
                 return
 
-            tecnico = session.query(Tecnico).filter_by(nome=tecnico_nome).first()
+            tecnico = session.query(Tecnico).filter_by(id=tecnico_id).first()
             if tecnico is None:
                 QMessageBox.warning(self, "Erro", "Técnico não encontrado.")
                 return
@@ -215,6 +228,9 @@ class RetornoMaterialWindow(QWidget):
             retirada.quantidade -= quantidade
             if retirada.quantidade == 0:
                 retirada.devolvido = True
+            else:
+                # Marca como parcialmente devolvido se a quantidade retornada for menor que a quantidade retirada
+                retirada.devolvido = False
 
             session.commit()
 
@@ -222,12 +238,12 @@ class RetornoMaterialWindow(QWidget):
             self.material_returned.emit()  # Emitir sinal após sucesso
 
             # Limpar campos
-            self.produto_input.clear()
-            self.tecnico_input.clear()
+            self.produto_input.setCurrentIndex(-1)
+            self.tecnico_input.setCurrentIndex(-1)
             self.quantidade_input.clear()
             self.patrimonio_input.clear()
             self.data_retorno_input.setDate(QDate.currentDate())
-            self.update_ordem_servico()
+            self.update_comboboxes()
 
         except Exception as e:
             session.rollback()
@@ -235,6 +251,7 @@ class RetornoMaterialWindow(QWidget):
 
         finally:
             session.close()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

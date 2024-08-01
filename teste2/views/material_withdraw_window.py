@@ -1,4 +1,6 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QFormLayout, QComboBox
+from PyQt5.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton, QMessageBox, QFormLayout, QComboBox
+)
 from PyQt5.QtGui import QRegularExpressionValidator
 from PyQt5.QtCore import QRegularExpression
 from datetime import datetime
@@ -6,14 +8,13 @@ from sqlalchemy.orm.exc import NoResultFound
 from utils.db_utils import Session
 from models import Material, Tecnico, RetiradaMaterial
 from utils.pdf_utils import generate_form_pdf
-from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 import os
 
 class MaterialWithdrawWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Retirar Material')
-        self.setGeometry(200, 200, 500, 500)  # Ajustado para incluir o novo botão
+        self.setGeometry(200, 200, 500, 500)
         self.initUI()
 
     def initUI(self):
@@ -204,7 +205,7 @@ class MaterialWithdrawWindow(QWidget):
     def retirar_material(self):
         session = None
         try:
-            quantidade_text = self.txt_quantidade.text()
+            quantidade_text = self.txt_quantidade.text().strip()
             if not quantidade_text:
                 QMessageBox.warning(self, 'Erro', 'O campo de quantidade não pode estar vazio!')
                 return
@@ -277,15 +278,6 @@ class MaterialWithdrawWindow(QWidget):
             if session:
                 session.close()
 
-    def clear_fields(self):
-        self.cmb_produto.setCurrentIndex(-1)
-        self.cmb_tecnico.setCurrentIndex(-1)
-        self.txt_quantidade.clear()
-        self.txt_data.clear()
-        self.txt_local.clear()
-        self.txt_ordem_servico.clear()
-        self.txt_patrimonio.clear()
-
     def update_products(self):
         session = None
         try:
@@ -297,13 +289,27 @@ class MaterialWithdrawWindow(QWidget):
 
             # Adiciona os produtos ao combo box
             for produto in produtos:
-                self.cmb_produto.addItem(produto.nome, produto.id)
+                self.cmb_produto.addItem(
+                    f"{produto.nome} - Quantidade: {produto.quantidade} - Patrimônio: {produto.patrimonio}", produto.id)
+
+            # Seleciona o primeiro item, se disponível
+            if self.cmb_produto.count() > 0:
+                self.cmb_produto.setCurrentIndex(0)
 
         except Exception as e:
             QMessageBox.critical(self, 'Erro', f'Erro ao atualizar produtos: {e}')
         finally:
             if session:
                 session.close()
+
+    def clear_fields(self):
+        self.cmb_produto.setCurrentIndex(-1)
+        self.cmb_tecnico.setCurrentIndex(-1)
+        self.txt_quantidade.clear()
+        self.txt_data.clear()
+        self.txt_local.clear()
+        self.txt_ordem_servico.clear()
+        self.txt_patrimonio.clear()
 
     def update_tecnicos(self):
         session = None
@@ -317,6 +323,10 @@ class MaterialWithdrawWindow(QWidget):
             # Adiciona os técnicos ao combo box
             for tecnico in tecnicos:
                 self.cmb_tecnico.addItem(tecnico.nome, tecnico.id)
+
+            # Seleciona o primeiro item, se disponível
+            if self.cmb_tecnico.count() > 0:
+                self.cmb_tecnico.setCurrentIndex(0)
 
         except Exception as e:
             QMessageBox.critical(self, 'Erro', f'Erro ao atualizar técnicos: {e}')
@@ -359,8 +369,8 @@ class MaterialWithdrawWindow(QWidget):
                 'matricula_responsavel': '',  # Substitua pelo valor real
                 'local_destino': self.txt_local.text().strip(),
                 'numero_patrimonio': self.txt_patrimonio.text().strip(),
-                'tecnico_responsavel': tecnico.nome,
-                'matricula_tecnico_responsavel': tecnico.matricula,  # Adiciona a matrícula do técnico responsável
+                'tecnico_responsavel': '',
+                'matricula_tecnico_responsavel':'',  # Adiciona a matrícula do técnico responsável
                 'supervisor_tecnico': '',  # Substitua pelo valor real
                 'matricula_supervisor': '',  # Substitua pelo valor real
                 'controle_materiais': '',  # Substitua pelo valor real

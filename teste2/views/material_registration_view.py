@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QLineEdit, QPushButton, QMess
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QDoubleValidator, QIntValidator
 from datetime import datetime
-from controllers.material_controller import register_material, is_patrimonio_unique
+from controllers.material_controller import register_material, is_patrimonio_unique, is_nota_fiscal_unique
 from models import Material
 from utils.db_utils import Session
 
@@ -80,7 +80,7 @@ class MaterialRegistrationWindow(QWidget):
         try:
             nome, preco, nota_fiscal, quantidade, fornecedora, patrimonio, data = self.collect_inputs()
 
-            if not is_patrimonio_unique(patrimonio):
+            if patrimonio and not is_patrimonio_unique(patrimonio):
                 QMessageBox.critical(self, 'Erro', 'Patrimônio já registrado.')
                 return
 
@@ -109,7 +109,7 @@ class MaterialRegistrationWindow(QWidget):
         patrimonio = self.patrimonio_input.text().upper()
         data_text = self.data_input.text()
 
-        if not all([nome, preco_text, nota_fiscal, quantidade_text, fornecedora, patrimonio, data_text]):
+        if not all([nome, preco_text, nota_fiscal, quantidade_text, fornecedora, data_text]):
             raise ValueError('Todos os campos devem ser preenchidos.')
 
         try:
@@ -137,16 +137,3 @@ class MaterialRegistrationWindow(QWidget):
         self.fornecedora_input.clear()
         self.patrimonio_input.clear()
         self.data_input.clear()
-
-def is_nota_fiscal_unique(nota_fiscal):
-    session = None
-    try:
-        session = Session()
-        material = session.query(Material).filter_by(nota_fiscal=nota_fiscal).first()
-        return material is None
-    except Exception as e:
-        print(f"Erro ao verificar nota fiscal: {str(e)}")
-        return False
-    finally:
-        if session:
-            session.close()

@@ -27,7 +27,7 @@ class Material(Base):
     __tablename__ = 'materiais'
 
     id = Column(Integer, primary_key=True)
-    nome = Column(String, nullable=False, unique=True)  # Garantir unicidade do nome
+    nome = Column(String, nullable=False)  # Garantir unicidade do nome
     preco = Column(Float, nullable=False)
     nota_fiscal = Column(String, nullable=True)  # Nota fiscal opcional
     quantidade = Column(Integer, nullable=False)  # Permite valores zero
@@ -36,7 +36,7 @@ class Material(Base):
     fornecedor = relationship('Fornecedor', back_populates='materiais')
     retiradas = relationship('RetiradaMaterial', back_populates='produto')
     retornos = relationship('RetornoMaterial', back_populates='produto')
-    patrimonio = Column(String)
+    patrimonio = Column(String, nullable=True)  # Permitir patrimônio nulo
     estoque_minimo = Column(Integer, nullable=False)
 
 class Tecnico(Base):

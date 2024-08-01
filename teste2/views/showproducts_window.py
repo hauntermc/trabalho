@@ -3,13 +3,11 @@ from models import Material, Fornecedor
 from utils.db_utils import Session
 from PyQt5.QtCore import Qt
 
-
 class ShowProductsWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle('Produtos Registrados')
         self.setGeometry(100, 100, 800, 600)
-
         self.initUI()
         self.apply_styles()
 
@@ -145,7 +143,6 @@ class ShowProductsWindow(QWidget):
             try:
                 with Session() as session:
                     fornecedor = session.query(Fornecedor).filter_by(id=produto.fornecedor_id).first()
-
             except Exception as e:
                 fornecedor = None
                 print(f"Erro ao buscar fornecedor: {e}")
@@ -158,13 +155,3 @@ class ShowProductsWindow(QWidget):
             self.table_widget.setItem(row, 5, QTableWidgetItem(data_formatada))
             self.table_widget.setItem(row, 6, QTableWidgetItem(fornecedor.nome if fornecedor else 'Não encontrado'))
             self.table_widget.setItem(row, 7, QTableWidgetItem(str(produto.patrimonio) if produto.patrimonio else ''))
-
-# Teste da janela de produtos
-if __name__ == '__main__':
-    import sys
-    from PyQt5.QtWidgets import QApplication
-
-    app = QApplication(sys.argv)
-    window = ShowProductsWindow()
-    window.show()
-    sys.exit(app.exec_())
