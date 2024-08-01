@@ -10,6 +10,7 @@ from models import Material, Tecnico, RetiradaMaterial
 from utils.pdf_utils import generate_form_pdf
 import os
 
+
 class MaterialWithdrawWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -104,26 +105,6 @@ class MaterialWithdrawWindow(QWidget):
         btn_retirar.clicked.connect(self.retirar_material)
         layout.addWidget(btn_retirar)
 
-        # Botão para imprimir a retirada
-        self.btn_imprimir = QPushButton('Imprimir Retirada')
-        self.btn_imprimir.setStyleSheet("""
-            QPushButton {
-                background-color: #003d7a;
-                color: white;
-                padding: 10px;
-                border: none;
-                border-radius: 5px;
-                font-size: 16px;
-                cursor: pointer;
-                margin-top: 10px;
-            }
-            QPushButton:hover {
-                background-color: #00264d;
-            }
-        """)
-        self.btn_imprimir.clicked.connect(self.imprimir_retirada)
-        layout.addWidget(self.btn_imprimir)
-
         # Botões para atualizar listas
         btn_atualizar_produtos = QPushButton('Atualizar Produtos')
         btn_atualizar_produtos.setStyleSheet("""
@@ -216,6 +197,10 @@ class MaterialWithdrawWindow(QWidget):
                 QMessageBox.warning(self, 'Erro', 'Quantidade inválida! Deve ser um número inteiro.')
                 return
 
+            if quantidade <= 0:
+                QMessageBox.warning(self, 'Erro', 'A quantidade de material a ser retirada deve ser maior que zero!')
+                return
+
             produto_id = self.cmb_produto.currentData()
             tecnico_id = self.cmb_tecnico.currentData()
             local = self.txt_local.text().strip()
@@ -229,6 +214,11 @@ class MaterialWithdrawWindow(QWidget):
             data = datetime.now().date()
 
             session = Session()
+
+            # Verificar se a ordem de serviço já existe
+            if session.query(RetiradaMaterial).filter_by(ordem_servico=ordem_servico).first():
+                QMessageBox.warning(self, 'Erro', 'A ordem de serviço já existe!')
+                return
 
             # Buscar o produto pelo ID
             try:
@@ -269,10 +259,17 @@ class MaterialWithdrawWindow(QWidget):
 
                 QMessageBox.information(self, 'Sucesso',
                                         f'{quantidade} unidades de {produto.nome} retiradas com sucesso! Patrimônio: {produto.patrimonio}')
+
+                # Chama a função para gerar o PDF automaticamente após a retirada
+                self.imprimir_retirada()
+
                 self.clear_fields()
             else:
-                QMessageBox.warning(self, 'Erro', 'Quantidade solicitada maior do que a disponível!')
+                QMessageBox.warning(self, 'Erro', 'Quantidade a retirar maior que a disponível em estoque!')
+
         except Exception as e:
+            if session:
+                session.rollback()
             QMessageBox.critical(self, 'Erro', f'Erro ao retirar material: {e}')
         finally:
             if session:
@@ -370,7 +367,7 @@ class MaterialWithdrawWindow(QWidget):
                 'local_destino': self.txt_local.text().strip(),
                 'numero_patrimonio': self.txt_patrimonio.text().strip(),
                 'tecnico_responsavel': '',
-                'matricula_tecnico_responsavel':'',  # Adiciona a matrícula do técnico responsável
+                'matricula_tecnico_responsavel': '',  # Adiciona a matrícula do técnico responsável
                 'supervisor_tecnico': '',  # Substitua pelo valor real
                 'matricula_supervisor': '',  # Substitua pelo valor real
                 'controle_materiais': '',  # Substitua pelo valor real
