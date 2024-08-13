@@ -44,26 +44,31 @@ class TelaProcurarPDF(QtWidgets.QWidget):
         if pasta:
             self.lista_pdfs.clear()
             self.pasta_selecionada = pasta  # Guardar a pasta selecionada
+            self.pdf_map = {}  # Mapeia nomes de PDFs para seus caminhos completos
             for root, _, files in os.walk(pasta):
                 for file in files:
                     if file.endswith('.pdf'):
-                        self.lista_pdfs.addItem(os.path.join(root, file))
+                        nome_arquivo = os.path.basename(file)
+                        self.lista_pdfs.addItem(nome_arquivo)
+                        self.pdf_map[nome_arquivo] = os.path.join(root, file)
 
     def pesquisar_pdf(self):
         # Filtrar a lista de PDFs com base no nome inserido
         filtro = self.pesquisa_input.text().lower()
         self.lista_pdfs.clear()
         if hasattr(self, 'pasta_selecionada') and self.pasta_selecionada:
-            for root, _, files in os.walk(self.pasta_selecionada):
-                for file in files:
-                    if file.endswith('.pdf') and filtro in file.lower():
-                        self.lista_pdfs.addItem(os.path.join(root, file))
+            for nome_arquivo, caminho_arquivo in self.pdf_map.items():
+                if filtro in nome_arquivo.lower():
+                    self.lista_pdfs.addItem(nome_arquivo)
+                    self.pdf_map[nome_arquivo] = caminho_arquivo  # Atualizar o mapa com o caminho completo
 
     def abrir_pdf_selecionado(self):
         item_selecionado = self.lista_pdfs.currentItem()
         if item_selecionado:
-            pdf_filename = item_selecionado.text()
-            self.abrir_pdf(pdf_filename)
+            pdf_nome = item_selecionado.text()
+            if pdf_nome in self.pdf_map:
+                pdf_filename = self.pdf_map[pdf_nome]
+                self.abrir_pdf(pdf_filename)
 
     def abrir_pdf(self, pdf_filename):
         try:
@@ -73,9 +78,3 @@ class TelaProcurarPDF(QtWidgets.QWidget):
                 subprocess.run(['open', pdf_filename] if sys.platform == 'darwin' else ['xdg-open', pdf_filename])
         except Exception as e:
             QtWidgets.QMessageBox.warning(self, 'Erro', f'Não foi possível abrir o PDF: {str(e)}')
-
-if __name__ == "__main__":
-    app = QtWidgets.QApplication(sys.argv)
-    window = TelaProcurarPDF()
-    window.show()
-    sys.exit(app.exec_())

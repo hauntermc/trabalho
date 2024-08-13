@@ -1,6 +1,8 @@
-from PyQt5.QtWidgets import QWidget, QLineEdit, QDoubleSpinBox, QLabel, QSpinBox, QFormLayout, QPushButton, QDateTimeEdit, QMessageBox
+from PyQt5.QtWidgets import QWidget, QLineEdit, QDoubleSpinBox, QLabel, QSpinBox, QFormLayout, QPushButton, \
+    QDateTimeEdit, QMessageBox
 from PyQt5.QtCore import QDateTime
 from banco_de_dados import Material, session, Fornecedor
+
 
 class TelaRegistroMaterial(QWidget):
     def __init__(self):
@@ -8,17 +10,36 @@ class TelaRegistroMaterial(QWidget):
         self.init_ui()
 
     def init_ui(self):
+        self.setWindowTitle('Formulário de Material')
+        self.resize(400, 200)  # Ajusta o tamanho para o mesmo do exemplo
+
+        # Layout
         layout = QFormLayout()
 
+        # Widgets
         self.nome_input = QLineEdit()
+        self.nome_input.setFixedWidth(300)  # Define a largura fixa para o campo de nome
+
         self.preco_input = QDoubleSpinBox()
+        self.preco_input.setFixedWidth(150)  # Define a largura fixa para o campo de preço
+
         self.nota_fiscal_input = QLineEdit()
+        self.nota_fiscal_input.setFixedWidth(150)  # Define a largura fixa para o campo de nota fiscal
+
         self.quantidade_input = QSpinBox()
+        self.quantidade_input.setFixedWidth(100)  # Define a largura fixa para o campo de quantidade
+
         self.patrimonio_input = QLineEdit()
+        self.patrimonio_input.setFixedWidth(150)  # Define a largura fixa para o campo de patrimônio
+
         self.fornecedor_input = QLineEdit()
+        self.fornecedor_input.setFixedWidth(300)  # Define a largura fixa para o campo de fornecedor
+
         self.data_input = QDateTimeEdit()
+        self.data_input.setFixedWidth(150)
         self.data_input.setDateTime(QDateTime.currentDateTime())  # Define a data e hora atual como padrão
 
+        # Adicionar widgets ao layout
         layout.addRow(QLabel('Nome:'), self.nome_input)
         layout.addRow(QLabel('Preço:'), self.preco_input)
         layout.addRow(QLabel('Nota Fiscal:'), self.nota_fiscal_input)
@@ -27,13 +48,43 @@ class TelaRegistroMaterial(QWidget):
         layout.addRow(QLabel('Fornecedor:'), self.fornecedor_input)
         layout.addRow(QLabel('Data:'), self.data_input)
 
+        # Botão de Salvar
         self.save_button = QPushButton('Salvar')
+        self.save_button.setFixedSize(100, 30)
         self.save_button.clicked.connect(self.salvar_material)
+        layout.addWidget(self.save_button)
 
-        layout.addRow(self.save_button)
-
+        # Aplicar layout
         self.setLayout(layout)
-        self.setWindowTitle('Formulário de Material')
+
+        # Estilo
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #f0f8ff; /* Cor de fundo azul claro */
+            }
+            QLabel {
+                color: #003366; /* Cor do texto das labels */
+                font-weight: bold;
+                font-size: 14px; /* Tamanho da fonte das labels */
+            }
+            QLineEdit, QDoubleSpinBox, QSpinBox, QDateTimeEdit {
+                border: 1px solid #003366; /* Borda azul */
+                border-radius: 5px;
+                padding: 5px;
+                background-color: #ffffff; /* Cor de fundo branco para campos de entrada */
+            }
+            QPushButton {
+                background-color: #003366; /* Cor de fundo azul escuro para botões */
+                color: #ffffff; /* Cor do texto dos botões */
+                border: none;
+                border-radius: 5px;
+                padding: 10px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #00509e; /* Cor de fundo azul claro ao passar o mouse */
+            }
+        """)
 
     def salvar_material(self):
         nome = self.nome_input.text()
@@ -43,6 +94,10 @@ class TelaRegistroMaterial(QWidget):
         patrimonio = self.patrimonio_input.text()
         fornecedor_nome = self.fornecedor_input.text()
         data = self.data_input.dateTime().toPyDateTime()
+
+        if not nome:
+            QMessageBox.warning(self, 'Erro', 'O nome do material não pode ser nulo!')
+            return
 
         try:
             if patrimonio:  # Verifica se o patrimônio não é nulo

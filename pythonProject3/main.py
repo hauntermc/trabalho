@@ -12,14 +12,15 @@ from telas.tela_retorno_material import TelaRetornoMaterial
 from telas.tela_mostrar_material_retirado import TelaMateriaisRetirados
 from telas.tela_estoque_total import TelaEstoque
 from telas.tela_procurar_pdf import TelaProcurarPDF  # Importe a nova tela
+from telas.tela_mostrar_tecnico import TelaMostrarTecnicos
+from telas.tela_mostrar_fornecedor import TelaFornecedores
+
 
 class MainApp(QtWidgets.QMainWindow):
     def __init__(self, authenticated_user):
         super().__init__()
         self.authenticated_user = authenticated_user
         self.setWindowTitle('Aplicação')
-        self.setGeometry(100, 100, 800, 600)
-
         self.init_ui()
 
     def init_ui(self):
@@ -42,9 +43,14 @@ class MainApp(QtWidgets.QMainWindow):
         mostrar_usuarios_action = QtWidgets.QAction('Mostrar Usuários', self)
         mostrar_usuarios_action.triggered.connect(self.abrir_mostrar_usuarios)
 
+        logout_action = QtWidgets.QAction('Logout', self)  # Adicionando a ação de logout
+        logout_action.triggered.connect(self.logout)
+
         # Adição das ações ao menu Usuário
         usuario_menu.addAction(cadastro_action)
         usuario_menu.addAction(mostrar_usuarios_action)
+        usuario_menu.addSeparator()  # Separador para organizar o menu
+        usuario_menu.addAction(logout_action)  # Adicionar o botão de logout
 
         # Criação das ações do menu Material
         registrar_material_action = QtWidgets.QAction('Registrar Material', self)
@@ -73,10 +79,18 @@ class MainApp(QtWidgets.QMainWindow):
         registro_fornecedor_action.triggered.connect(self.abrir_registro_fornecedor)
         fornecedor_menu.addAction(registro_fornecedor_action)
 
+        mostrar_fornecedores_action = QtWidgets.QAction('Mostrar Fornecedores', self)
+        mostrar_fornecedores_action.triggered.connect(self.abrir_mostrar_fornecedores)
+        fornecedor_menu.addAction(mostrar_fornecedores_action)
+
         # Criação das ações do menu Técnico
         registro_tecnico_action = QtWidgets.QAction('Cadastro de Técnico', self)
         registro_tecnico_action.triggered.connect(self.abrir_registro_tecnico)
         tecnico_menu.addAction(registro_tecnico_action)
+
+        mostrar_tecnico_action = QtWidgets.QAction('Mostrar Técnico', self)
+        mostrar_tecnico_action.triggered.connect(self.abrir_mostrar_tecnico)
+        tecnico_menu.addAction(mostrar_tecnico_action)
 
         # Criação das ações do menu PDFs
         procurar_pdfs_action = QtWidgets.QAction('Procurar PDFs', self)
@@ -98,8 +112,12 @@ class MainApp(QtWidgets.QMainWindow):
         self.tela_mostrar_usuarios.show()
 
     def registrar_material(self):
-        self.tela_registro_material = TelaRegistroMaterial()
-        self.tela_registro_material.show()
+        try:
+            self.tela_registro_material = TelaRegistroMaterial()
+            self.tela_registro_material.show()
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(self, 'Erro',
+                                           f'Ocorreu um erro ao abrir a tela de registro de material: {e}')
 
     def abrir_mostrar_materiais(self):
         self.tela_mostrar_materiais = TelaMostrarMateriais()
@@ -112,6 +130,10 @@ class MainApp(QtWidgets.QMainWindow):
     def abrir_registro_tecnico(self):
         self.tela_registro_tecnico = TelaRegistroTecnico()
         self.tela_registro_tecnico.show()
+
+    def abrir_mostrar_tecnico(self):
+        self.tela_mostrar_tecnico = TelaMostrarTecnicos()
+        self.tela_mostrar_tecnico.show()
 
     def abrir_retirar_material(self):
         self.tela_retirar_material = TelaRetirarMaterial()
@@ -136,6 +158,45 @@ class MainApp(QtWidgets.QMainWindow):
         self.tela_procurar_pdfs = TelaProcurarPDF()
         self.tela_procurar_pdfs.show()
 
+    def abrir_mostrar_fornecedores(self):
+        self.tela_mostrar_fornecedores = TelaFornecedores()
+        self.tela_mostrar_fornecedores.show()
+
+    def logout(self):
+        # Confirmação de logout
+        reply = QtWidgets.QMessageBox.question(
+            self, 'Logout', 'Tem certeza de que deseja sair?',
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No
+        )
+
+        if reply == QtWidgets.QMessageBox.Yes:
+            self.hide()  # Esconde a aplicação principal
+
+            self.tela_login = TelaLogin()
+            if self.tela_login.exec_():
+                # Se o login for bem-sucedido, reabrir a aplicação principal
+                self.authenticated_user = self.tela_login.username_input.text()
+                self.show()  # Reexibe a aplicação principal
+
+    def closeEvent(self, event):
+        # Confirmação ao fechar a aplicação
+        reply = QtWidgets.QMessageBox.question(
+            self, 'Fechar', 'Tem certeza de que deseja sair?',
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No, QtWidgets.QMessageBox.No
+        )
+
+        if reply == QtWidgets.QMessageBox.Yes:
+            event.accept()  # Aceita o fechamento
+        else:
+            event.ignore()  # Ignora o fechamento
+
+    def show_full_screen_excluding_taskbar(self):
+        screen = QtWidgets.QApplication.primaryScreen()
+        screen_rect = screen.availableGeometry()  # Obtém o retângulo da tela excluindo a área da barra de tarefas
+        self.setGeometry(screen_rect)
+        self.show()
+
+
 if __name__ == '__main__':
     app = QtWidgets.QApplication([])
 
@@ -144,7 +205,7 @@ if __name__ == '__main__':
     if tela_login.exec_():
         # Se o login for bem-sucedido, exibir a aplicação principal
         main_app = MainApp(tela_login.username_input.text())
-        main_app.show()
+        main_app.show_full_screen_excluding_taskbar()  # Abre a aplicação em tela cheia excluindo a barra de tarefas
         app.exec_()
     else:
         # Se o login falhar, sair do aplicativo

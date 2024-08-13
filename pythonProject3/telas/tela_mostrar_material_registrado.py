@@ -1,5 +1,5 @@
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QWidget, QTableView, QVBoxLayout, QPushButton, QMessageBox, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QTableView, QVBoxLayout, QPushButton, QMessageBox, QHBoxLayout, QLabel, QLineEdit
 from PyQt5.QtCore import QAbstractTableModel, Qt, QModelIndex
 from banco_de_dados import Material, RetiradaMaterial, session
 
@@ -43,6 +43,11 @@ class MaterialTableModel(QAbstractTableModel):
         del self.materials[row]
         self.endRemoveRows()
 
+    def update_data(self, materials):
+        self.beginResetModel()
+        self.materials = materials
+        self.endResetModel()
+
 class TelaMostrarMateriais(QWidget):
     def __init__(self):
         super().__init__()
@@ -50,6 +55,48 @@ class TelaMostrarMateriais(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout()
+
+        # Estilo moderno com cor azul clara
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #f0f8ff; /* Cor de fundo azul clara */
+                font-family: Arial, sans-serif;
+            }
+            QLineEdit, QTableView {
+                background-color: #ffffff;
+                border: 2px solid #003366;
+                padding: 8px;
+                border-radius: 5px;
+            }
+            QPushButton {
+                background-color: #003366;
+                color: white;
+                font-weight: bold;
+                border-radius: 5px;
+                padding: 10px;
+                font-size: 12pt;
+            }
+            QPushButton:hover {
+                background-color: #0055a5;
+            }
+            QLabel {
+                color: #003366;
+                font-weight: bold;
+                font-size: 12pt;
+            }
+        """)
+
+        search_layout = QHBoxLayout()
+        self.search_label = QLabel('Pesquisar:')
+        self.search_input = QLineEdit()
+        self.search_button = QPushButton('Buscar')
+        self.search_button.clicked.connect(self.pesquisar_material)
+
+        search_layout.addWidget(self.search_label)
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(self.search_button)
+
+        layout.addLayout(search_layout)
 
         self.table_view = QTableView()
 
@@ -106,3 +153,20 @@ class TelaMostrarMateriais(QWidget):
                 QMessageBox.warning(self, 'Erro', 'Material não encontrado!')
         else:
             QMessageBox.warning(self, 'Erro', 'Nenhum material selecionado!')
+
+    def pesquisar_material(self):
+        termo_pesquisa = self.search_input.text()
+        try:
+            if termo_pesquisa:
+                materiais_filtrados = session.query(Material).filter(
+                    Material.nome.ilike(f'%{termo_pesquisa}%') |
+                    Material.nota_fiscal.ilike(f'%{termo_pesquisa}%')
+                ).all()
+                if materiais_filtrados:
+                    self.model.update_data(materiais_filtrados)
+                else:
+                    QMessageBox.information(self, 'Sem Resultados', 'Nenhum material encontrado.')
+            else:
+                self.model.update_data(session.query(Material).all())
+        except Exception as e:
+            QMessageBox.critical(self, 'Erro', f'Ocorreu um erro durante a busca: {str(e)}')

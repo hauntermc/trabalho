@@ -1,3 +1,4 @@
+from PyQt5.QtGui import QIntValidator
 from PyQt5.QtWidgets import QWidget, QFormLayout, QLineEdit, QPushButton, QMessageBox
 from banco_de_dados import Tecnico, session
 
@@ -9,9 +10,39 @@ class TelaRegistroTecnico(QWidget):
     def init_ui(self):
         layout = QFormLayout()
 
+
         self.nome_input = QLineEdit()
         self.matricula_input = QLineEdit()
         self.telefone_input = QLineEdit()
+        self.telefone_input.setValidator(QIntValidator())
+
+
+        self.setStyleSheet("""
+                    QWidget {
+                        background-color: #eaf4f4; /* Cor de fundo azul clara */
+                        border-radius: 10px;
+                        font-family: Arial, sans-serif;
+                        font-size: 12pt;
+                    }
+                    QLineEdit {
+                        border: 1px solid #007bff; border-radius: 5px; padding: 10px; background-color: white;
+                    }
+                    QPushButton {
+                        background-color: #003366;
+                        color: white;
+                        font-weight: bold;
+                        border-radius: 5px;
+                        padding: 10px;
+                        font-size: 12pt;
+                    }
+                    QPushButton:hover {
+                        background-color: #0055a5;
+                    }
+                    QLabel {
+                        color: #003366;
+                        font-weight: bold;
+                    }
+                """)
 
         layout.addRow('Nome:', self.nome_input)
         layout.addRow('Matrícula:', self.matricula_input)
