@@ -94,7 +94,10 @@ class TelaRetornoMaterial(QtWidgets.QWidget):
     def carregar_materiais(self):
         try:
             # Consultar os materiais que podem ser retornados (aqueles que foram retirados e ainda não retornados)
-            materiais = session.query(RetiradaMaterial).filter(RetiradaMaterial.quantidade > 0).all()
+            materiais = session.query(RetiradaMaterial).filter(
+                RetiradaMaterial.quantidade > 0,
+                RetiradaMaterial.retornado == False  # Adicionar este filtro
+            ).all()
             self.nome_produto_input.clear()  # Limpa o ComboBox antes de adicionar novos itens
             self.nome_produto_input.addItem("Selecione um material")
             for retirada in materiais:
@@ -155,8 +158,8 @@ class TelaRetornoMaterial(QtWidgets.QWidget):
             except ValueError:
                 raise ValueError("Quantidade deve ser um número inteiro")
 
-        # Remova a retirada do banco de dados
-        session.delete(retirada)
+        # Marcar como retornado em vez de deletar
+        retirada.retornado = True
         session.commit()
 
     def limpar_campos(self):

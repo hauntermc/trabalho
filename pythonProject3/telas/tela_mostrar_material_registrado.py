@@ -28,7 +28,7 @@ class MaterialTableModel(QAbstractTableModel):
             elif index.column() == 4:
                 return material.quantidade
             elif index.column() == 5:
-                return material.patrimonio  # Exibir o patrimônio
+                return material.patrimonio
             elif index.column() == 6:
                 return material.data.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -56,7 +56,6 @@ class TelaMostrarMateriais(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
-        # Estilo moderno com cor azul clara
         self.setStyleSheet("""
             QWidget {
                 background-color: #f0f8ff; /* Cor de fundo azul clara */
@@ -130,11 +129,14 @@ class TelaMostrarMateriais(QWidget):
             material = session.query(Material).get(material_id)
             if material:
                 # Verificar se existem retiradas associadas
-                retiradas = session.query(RetiradaMaterial).filter_by(material_id=material_id).count()
-                if retiradas > 0:
-                    QMessageBox.warning(self, 'Erro',
-                                        'Não é possível excluir este material, pois ele está associado a uma ou mais retiradas.')
-                    return
+                retiradas = session.query(RetiradaMaterial).filter_by(material_id=material_id).all()
+                if retiradas:
+                    # Verificar se o material já foi retornado
+                    material_retornado = all(retirada.retorno for retirada in retiradas)
+                    if not material_retornado:
+                        QMessageBox.warning(self, 'Erro',
+                                            'Não é possível excluir este material, pois ele está associado a uma ou mais retiradas não retornadas.')
+                        return
 
                 # Confirmação de exclusão
                 reply = QMessageBox.question(self, 'Confirmação de Exclusão',

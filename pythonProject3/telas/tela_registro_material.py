@@ -22,12 +22,17 @@ class TelaRegistroMaterial(QWidget):
 
         self.preco_input = QDoubleSpinBox()
         self.preco_input.setFixedWidth(150)  # Define a largura fixa para o campo de preço
+        self.preco_input.setDecimals(2)  # Define o número de casas decimais
+        self.preco_input.setMinimum(0.0)  # Define o valor mínimo
+        self.preco_input.setMaximum(1e6)  # Define o valor máximo, ajuste conforme necessário
 
         self.nota_fiscal_input = QLineEdit()
         self.nota_fiscal_input.setFixedWidth(150)  # Define a largura fixa para o campo de nota fiscal
 
         self.quantidade_input = QSpinBox()
         self.quantidade_input.setFixedWidth(100)  # Define a largura fixa para o campo de quantidade
+        self.quantidade_input.setMinimum(0)  # Define o valor mínimo
+        self.quantidade_input.setMaximum(1e6)  # Define o valor máximo, ajuste conforme necessário
 
         self.patrimonio_input = QLineEdit()
         self.patrimonio_input.setFixedWidth(150)  # Define a largura fixa para o campo de patrimônio

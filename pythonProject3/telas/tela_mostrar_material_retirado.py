@@ -1,12 +1,13 @@
 from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QTableWidgetItem
-from banco_de_dados import session, RetiradaMaterial
+from PyQt5.QtWidgets import QTableWidgetItem, QPushButton, QMessageBox
+from banco_de_dados import session, RetiradaMaterial, Material
+
 
 class TelaMateriaisRetirados(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Materiais Retirados')
-        self.setGeometry(200, 100, 1300, 400)  # Ajustado para acomodar a nova coluna
+        self.setGeometry(200, 100, 1400, 400)
         self.init_ui()
 
     def init_ui(self):
@@ -54,15 +55,22 @@ class TelaMateriaisRetirados(QtWidgets.QWidget):
             }
         """)
 
+        # Botão de Atualizar
+        self.btn_atualizar = QPushButton('Atualizar')
+        self.btn_atualizar.clicked.connect(self.load_data)
+        layout.addWidget(self.btn_atualizar)
+
         # Tabela para mostrar materiais retirados
         self.table = QtWidgets.QTableWidget()
-        self.table.setColumnCount(9)  # Alterado para 9 colunas
-        self.table.setHorizontalHeaderLabels(['ID', 'OS', 'Nome do Material', 'Quantidade', 'Nome do Técnico', 'Data Retirada', 'Patrimônio', 'Local', 'Retornado'])
-        # Aumentar o espaçamento entre as colunas
-        self.table.horizontalHeader().setDefaultSectionSize(120)  # Largura padrão para todas as colunas
-        self.table.setColumnWidth(1, 150)  # Largura específica para a coluna 'OS'
-        self.table.setColumnWidth(2, 200)  # Largura específica para a coluna 'Nome do Material'
-        self.table.setColumnWidth(4, 150)  # Largura específica para a coluna 'Nome do Técnico'
+        self.table.setColumnCount(10)  # Adiciona uma coluna para o botão de exclusão
+        self.table.setHorizontalHeaderLabels(
+            ['ID', 'OS', 'Nome do Material', 'Quantidade', 'Nome do Técnico', 'Data Retirada', 'Patrimônio', 'Local',
+             'Retornado', 'Excluir'])
+        self.table.horizontalHeader().setDefaultSectionSize(120)
+        self.table.setColumnWidth(1, 150)
+        self.table.setColumnWidth(2, 200)
+        self.table.setColumnWidth(4, 150)
+        self.table.setColumnWidth(5, 150)
 
         # Adicionar tabela ao layout
         layout.addWidget(self.table)
@@ -73,20 +81,55 @@ class TelaMateriaisRetirados(QtWidgets.QWidget):
 
     def load_data(self):
         try:
-            # Consultar os materiais retirados e seus materiais associados
+            # Carrega todos os materiais retirados, independentemente de terem sido retornados
             materiais_retirados = session.query(RetiradaMaterial).join(RetiradaMaterial.material).all()
 
             self.table.setRowCount(len(materiais_retirados))
             for row, retirada in enumerate(materiais_retirados):
                 self.table.setItem(row, 0, QTableWidgetItem(str(retirada.id)))
                 self.table.setItem(row, 1, QTableWidgetItem(retirada.ordem_servico))
-                self.table.setItem(row, 2, QTableWidgetItem(retirada.material.nome))  # Nome do material
-                self.table.setItem(row, 3, QTableWidgetItem(retirada.quantidade))
+                self.table.setItem(row, 2, QTableWidgetItem(retirada.material.nome))
+                self.table.setItem(row, 3, QTableWidgetItem(str(retirada.quantidade)))
                 self.table.setItem(row, 4, QTableWidgetItem(retirada.tecnico_nome))
                 self.table.setItem(row, 5, QTableWidgetItem(retirada.data_retirada.strftime('%Y-%m-%d %H:%M:%S')))
-                self.table.setItem(row, 6, QTableWidgetItem(retirada.patrimonio))  # Patrimônio
-                self.table.setItem(row, 7, QTableWidgetItem(retirada.local_utilizacao))  # Local
+                self.table.setItem(row, 6, QTableWidgetItem(retirada.patrimonio))
+                self.table.setItem(row, 7, QTableWidgetItem(retirada.local_utilizacao))
                 retornado_text = 'Sim' if retirada.retornado else 'Não'
-                self.table.setItem(row, 8, QTableWidgetItem(retornado_text))  # Status "Retornado"
+                self.table.setItem(row, 8, QTableWidgetItem(retornado_text))
+
+                # Adiciona o botão de exclusão na última coluna
+                delete_button = QPushButton('Excluir')
+                delete_button.clicked.connect(lambda _, r=row: self.excluir_material(r))
+                self.table.setCellWidget(row, 9, delete_button)
+
         except Exception as e:
             QtWidgets.QMessageBox.critical(self, 'Erro', f'Ocorreu um erro ao carregar os dados: {str(e)}')
+
+    def excluir_material(self, row):
+        try:
+            item = self.table.item(row, 0)  # Coluna 0 contém o ID
+            if item:
+                retirada_id = int(item.text())
+                retirada = session.query(RetiradaMaterial).get(retirada_id)
+                if retirada:
+                    if not retirada.retornado:
+                        QMessageBox.warning(self, 'Erro', 'Não é possível excluir um material que não foi retornado.')
+                        return
+
+                    # Confirmação de exclusão
+                    reply = QMessageBox.question(self, 'Confirmação de Exclusão',
+                                                 f'Tem certeza de que deseja excluir o material retornado com ID {retirada_id}?',
+                                                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                    if reply == QMessageBox.Yes:
+                        try:
+                            session.delete(retirada)
+                            session.commit()
+                            self.table.removeRow(row)
+                            QMessageBox.information(self, 'Sucesso', 'Material excluído com sucesso!')
+                        except Exception as e:
+                            session.rollback()
+                            QMessageBox.critical(self, 'Erro', f'Erro ao excluir o material: {str(e)}')
+                else:
+                    QMessageBox.warning(self, 'Erro', 'Retirada não encontrada!')
+        except Exception as e:
+            QMessageBox.critical(self, 'Erro', f'Ocorreu um erro ao excluir o material: {str(e)}')
