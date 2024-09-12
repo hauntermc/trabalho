@@ -1,0 +1,41 @@
+self.tipo_documento_combo.setStyleSheet("""
+    QComboBox {
+        background-color: rgba(255, 255, 255, 0.8);
+        border: 2px solid #78909c;
+        border-radius: 6px;
+        padding: 10px;  /* Aumentar o padding para expandir o campo */
+        font-size: 14px;  /* Aumentar o tamanho da fonte */
+        color: #37474f;
+    }
+    QComboBox:focus {
+        border: 2px solid #546e7a;
+    }
+""")
+
+self.numero_nf_input.setStyleSheet("""
+    QLineEdit {
+        background-color: rgba(255, 255, 255, 0.8);
+        border: 2px solid #78909c;
+        border-radius: 6px;
+        padding: 10px;  /* Aumentar o padding */
+        font-size: 14px;  /* Aumentar o tamanho da fonte */
+        color: #37474f;
+    }
+    QLineEdit:focus {
+        border: 2px solid #546e7a;
+    }
+""")
+
+self.numero_sm_input.setStyleSheet("""
+    QLineEdit {
+        background-color: rgba(255, 255, 255, 0.8);
+        border: 2px solid #78909c;
+        border-radius: 6px;
+        padding: 10px;  /* Aumentar o padding */
+        font-size: 14px;  /* Aumentar o tamanho da fonte */
+        color: #37474f;
+    }
+    QLineEdit:focus {
+        border: 2px solid #546e7a;
+    }
+""")
