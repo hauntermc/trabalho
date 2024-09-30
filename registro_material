@@ -1,0 +1,307 @@
+import logging
+import traceback
+import uuid
+from datetime import datetime
+
+from PyQt5.QtWidgets import (QWidget, QLineEdit, QLabel, QPushButton, QMessageBox, QVBoxLayout, QScrollArea,
+                             QHBoxLayout, QGridLayout, QFrame, QComboBox, QSizePolicy, QFormLayout, QTableWidget,
+                             QTableWidgetItem, QHeaderView)
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QColor, QFont, QDoubleValidator
+from PyQt5.QtWidgets import QGraphicsDropShadowEffect
+from sqlalchemy import func, text
+from banco_de_dados import Material
+from database_config import session_scope
+from sessao_usuario import SessaoUsuario
+from telas.tela_base import TelaBaseComESC
+from contextlib import contextmanager
+
+
+class TelaRegistroMaterial(TelaBaseComESC):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        if not self.verificar_permissao():
+            raise PermissionError("Acesso negado")
+        self.materiais = []
+        self.init_ui()
+        self.showMaximized()
+
+    def init_ui(self):
+        self.setWindowTitle('Registro de Material - Futurista')
+        self.resize(800, 600)
+        self.setMinimumSize(600, 400)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
+
+        # Título
+        title_label = QLabel("Registro de Material")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("font-size: 24px; font-weight: bold; color: #0D47A1; background-color: transparent;")
+        title_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        main_layout.addWidget(title_label)
+
+        # Frame para o formulário
+        form_frame = QFrame()
+        form_frame.setObjectName("formFrame")
+        form_layout = QFormLayout(form_frame)
+        form_layout.setLabelAlignment(Qt.AlignRight)
+        form_layout.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
+        form_layout.setHorizontalSpacing(20)
+        form_layout.setVerticalSpacing(15)
+
+        self.nome_input = QLineEdit()
+        self.nome_input.setPlaceholderText("Digite o nome do material")
+        self.nome_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        form_layout.addRow(QLabel('Nome:'), self.nome_input)
+
+        self.descricao_input = QLineEdit()
+        self.descricao_input.setPlaceholderText("Digite a descrição do material")
+        self.descricao_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        form_layout.addRow(QLabel('Descrição:'), self.descricao_input)
+
+        self.tipo_combo = QComboBox()
+        self.tipo_combo.addItems(['Bem de Consumo', 'Bem Permanente'])
+        self.tipo_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        form_layout.addRow(QLabel('Tipo:'), self.tipo_combo)
+
+        # Adicionar campo de unidade de medida
+        self.unidade_medida_combo = QComboBox()
+        self.unidade_medida_combo.addItems(['Unidade', 'Metro'])
+        self.unidade_medida_combo.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        form_layout.addRow(QLabel('Unidade de Medida:'), self.unidade_medida_combo)
+
+        main_layout.addWidget(form_frame)
+
+        # Botão de adicionar material
+        add_button_layout = QHBoxLayout()
+        add_button_layout.addStretch()
+        self.add_button = QPushButton('Adicionar Material')
+        self.add_button.setFixedSize(200, 40)
+        self.add_button.clicked.connect(self.adicionar_material)
+        add_button_layout.addWidget(self.add_button)
+        add_button_layout.addStretch()
+        main_layout.addLayout(add_button_layout)
+
+        # Tabela de materiais adicionados
+        self.tabela_materiais = QTableWidget()
+        self.tabela_materiais.setColumnCount(4)
+        self.tabela_materiais.setHorizontalHeaderLabels(['Nome', 'Descrição', 'Tipo', 'Ações'])
+        self.tabela_materiais.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+        self.tabela_materiais.verticalHeader().setVisible(False)
+        self.tabela_materiais.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.tabela_materiais.setEditTriggers(QTableWidget.NoEditTriggers)
+        self.tabela_materiais.setSelectionBehavior(QTableWidget.SelectRows)
+        self.tabela_materiais.setAlternatingRowColors(True)
+        main_layout.addWidget(self.tabela_materiais)
+
+        # Botão de salvar
+        save_button_layout = QHBoxLayout()
+        save_button_layout.addStretch()
+        self.save_button = QPushButton('Salvar Todos')
+        self.save_button.setFixedSize(200, 40)
+        self.save_button.clicked.connect(self.salvar_materiais)
+        save_button_layout.addWidget(self.save_button)
+        save_button_layout.addStretch()
+        main_layout.addLayout(save_button_layout)
+
+        self.aplicar_estilo()
+
+    def aplicar_estilo(self):
+        self.setStyleSheet("""
+            QWidget {
+                background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, 
+                                                  stop:0 #e0e0e0, stop:1 #bdbdbd);
+                color: #37474f;
+                font-family: 'Roboto', sans-serif;
+            }
+            QLabel {
+                background: none;
+                border: none;
+                padding: 0;
+                margin: 0;
+                font-size: 14px;
+                font-weight: bold;
+                color: #37474f;
+            }
+            QLineEdit, QComboBox {
+                background-color: rgba(255, 255, 255, 0.8);
+                border: 1px solid #78909c;
+                border-radius: 6px;
+                padding: 8px;
+                font-size: 13px;
+                color: #37474f;
+            }
+            QLineEdit:focus, QComboBox:focus {
+                border: 2px solid #546e7a;
+            }
+            QPushButton {
+                background-color: #546e7a;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #607d8b;
+            }
+            QTableWidget {
+                background-color: rgba(255, 255, 255, 0.8);
+                border: 1px solid #78909c;
+                border-radius: 6px;
+                color: #37474f;
+                font-size: 13px;
+                padding: 5px;
+            }
+            QTableWidget::item:selected {
+                background-color: #90a4ae;
+                color: white;
+            }
+            QFrame#formFrame {
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 8px;
+                padding: 10px;
+            }
+        """)
+
+        # Adicionar sombra ao frame do formulário
+        form_frame = self.findChild(QFrame, "formFrame")
+        if form_frame:
+            shadow = QGraphicsDropShadowEffect()
+            shadow.setBlurRadius(15)
+            shadow.setColor(QColor(0, 0, 0, 40))
+            shadow.setOffset(0, 5)
+            form_frame.setGraphicsEffect(shadow)
+
+    def adicionar_material(self):
+        nome = self.nome_input.text().strip()
+        descricao = self.descricao_input.text().strip()
+        tipo = self.tipo_combo.currentText()
+        unidade_medida = self.unidade_medida_combo.currentText()
+
+        if not nome:
+            QMessageBox.warning(self, 'Erro', 'Por favor, informe o nome do material!')
+            return
+
+        # Verificar se o nome já existe no banco de dados
+        with session_scope() as session:
+            if session.query(Material).filter(func.lower(Material.nome) == nome.lower()).first():
+                QMessageBox.warning(self, 'Erro', f'O material "{nome}" já existe no banco de dados!')
+                return
+
+        self.materiais.append({'nome': nome, 'descricao': descricao, 'tipo': tipo, 'unidade_medida': unidade_medida})
+        self.atualizar_tabela_materiais()
+        self.limpar_campos()
+
+    def atualizar_tabela_materiais(self):
+        self.tabela_materiais.setRowCount(len(self.materiais))
+        for row, material in enumerate(self.materiais):
+            self.tabela_materiais.setItem(row, 0, QTableWidgetItem(material['nome']))
+            self.tabela_materiais.setItem(row, 1, QTableWidgetItem(material['descricao']))
+            self.tabela_materiais.setItem(row, 2, QTableWidgetItem(material['tipo']))
+            self.tabela_materiais.setItem(row, 3, QTableWidgetItem(material['unidade_medida']))
+
+            remover_button = QPushButton('Remover')
+            remover_button.setStyleSheet("""
+                   QPushButton {
+                       background-color: #f44336;
+                       color: white;
+                       border: none;
+                       padding: 5px 10px;
+                       border-radius: 4px;
+                   }
+                   QPushButton:hover {
+                       background-color: #d32f2f;
+                   }
+               """)
+            remover_button.clicked.connect(lambda _, r=row: self.remover_material(r))
+            self.tabela_materiais.setCellWidget(row, 4, remover_button)
+
+    def remover_material(self, row):
+        if 0 <= row < len(self.materiais):
+            del self.materiais[row]
+            self.atualizar_tabela_materiais()
+
+    def limpar_campos(self):
+        self.nome_input.clear()
+        self.descricao_input.clear()
+        self.tipo_combo.setCurrentIndex(0)
+
+    import logging
+    import traceback
+
+
+
+    def salvar_materiais(self):
+        if not self.materiais:
+            QMessageBox.warning(self, 'Erro', 'Adicione pelo menos um material antes de salvar!')
+            return
+
+        materiais_salvos = 0
+        with session_scope() as session:
+            for material in self.materiais:
+                try:
+                    logging.debug(f"Tentando salvar material: {material['nome']}")
+
+                    if session.query(Material).filter(func.lower(Material.nome) == material['nome'].lower()).first():
+                        QMessageBox.warning(self, 'Erro',
+                                            f'O material "{material["nome"]}" já existe no banco de dados e não será salvo.')
+                        continue
+
+                    codigo = self.gerar_codigo_material(material['nome'])
+
+                    result = session.execute(text("SELECT COALESCE(MAX(id), 0) + 1 FROM materiais"))
+                    next_id = result.scalar()
+
+                    novo_material = Material(
+                        id=next_id,
+                        nome=material['nome'],
+                        descricao=material['descricao'],
+                        tipo=material['tipo'],
+                        codigo=codigo,
+                        ativo=True,
+                        unidade_medida=material['unidade_medida']
+                    )
+
+                    session.add(novo_material)
+                    materiais_salvos += 1
+                    logging.debug(f"Material {material['nome']} salvo com sucesso. ID: {novo_material.id}")
+                except Exception as e:
+                    error_msg = f'Erro ao salvar material "{material["nome"]}": {str(e)}'
+                    logging.error(error_msg)
+                    logging.error(traceback.format_exc())
+                    QMessageBox.critical(self, 'Erro', error_msg)
+
+        if materiais_salvos > 0:
+            QMessageBox.information(self, 'Sucesso', f'{materiais_salvos} material(is) registrado(s) com sucesso!')
+            self.materiais.clear()
+            self.atualizar_tabela_materiais()
+            self.limpar_campos()
+
+        logging.debug("Método salvar_materiais concluído")
+
+    def gerar_codigo_material(self, nome_material):
+        nome_limpo = ''.join(char for char in nome_material.upper() if char.isalnum())
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        return f"MAT{nome_limpo[:3]}{timestamp}"
+
+    @staticmethod
+    def verificar_permissao():
+        is_admin = SessaoUsuario.is_admin()
+        is_supervisor = SessaoUsuario.is_supervisor()  # Assumindo que este método existe
+        logging.debug(f"Verificando permissão: Admin: {is_admin}, Supervisor: {is_supervisor}")
+        return is_admin or is_supervisor
+
+def abrir_tela_registro_material(parent=None):
+    try:
+        tela = TelaRegistroMaterial(parent)
+        tela.showMaximized()
+    except PermissionError:
+        QMessageBox.warning(parent, 'Acesso Negado', 'Apenas o administrador pode acessar esta tela.')
+
+def verificar_material_existe(self, nome):
+    with session_scope() as session:
+        return session.query(Material).filter(func.lower(Material.nome) == nome.lower()).first() is not None
