@@ -1,0 +1,562 @@
+import logging
+import os
+import subprocess
+import traceback
+from venv import logger
+
+from PyQt5.QtCore import QDateTime, Qt, QUrl, pyqtSignal, QTimer
+from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtWebEngineWidgets import QWebEngineView
+from PyQt5.QtWidgets import QWidget, QFormLayout, QLineEdit, QPushButton, QMessageBox, QVBoxLayout, QListWidget, \
+    QGraphicsDropShadowEffect, QLabel, QFrame, QHBoxLayout, QDialog, QComboBox
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, text
+from banco_de_dados import Material, Requisicao, Estoque, Tecnico, Usuario
+from telas.tela_base import TelaBaseComESC
+
+
+class PDFViewer(QDialog):
+    def __init__(self, pdf_path):
+        super().__init__()
+        self.setWindowTitle("Visualizador de PDF")
+        self.setGeometry(100, 100, 800, 600)
+        self.showMaximized()
+
+        layout = QVBoxLayout(self)
+
+        self.web_view = QWebEngineView()
+        self.web_view.settings().setAttribute(self.web_view.settings().PluginsEnabled, True)
+        self.web_view.settings().setAttribute(self.web_view.settings().PdfViewerEnabled, True)
+
+        layout.addWidget(self.web_view)
+
+        print_button = QPushButton("Imprimir")
+        print_button.clicked.connect(self.print_pdf)
+        layout.addWidget(print_button)
+
+        self.load_pdf(pdf_path)
+
+    def load_pdf(self, pdf_path):
+        self.web_view.load(QUrl.fromLocalFile(pdf_path))
+
+    def print_pdf(self):
+        self.web_view.page().printToPdf("documento_impresso.pdf")
+        QMessageBox.information(self, "Impressão", "PDF enviado para impressão.")
+
+class RequisicaoForm(TelaBaseComESC):
+    closed = pyqtSignal()
+
+    def __init__(self, ordem_servico, matricula_tecnico, nome_tecnico, nome_usuario, local_retirada):
+        super().__init__()
+        logging.basicConfig(level=logging.DEBUG,
+                            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                            filename='requisicao_form.log')
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Iniciando RequisicaoForm")
+        self.requisicao_form = None
+        self.ordem_servico_inicial = ordem_servico
+        self.matricula_tecnico_inicial = matricula_tecnico
+        self.nome_tecnico_inicial = nome_tecnico
+        self.nome_usuario_inicial = nome_usuario
+        self.local_retirada = local_retirada
+        self.requisicoes = []
+        self.initUI()
+        self.showMaximized()
+
+    def initUI(self):
+        self.setWindowTitle('Requisição de Material')
+        self.resize(800, 600)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
+
+        # Título
+        title_label = QLabel("Requisição de Material")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setStyleSheet("""
+            font-size: 26px;
+            font-weight: bold;
+            color: #0D47A1;
+            background-color: transparent;
+            padding: 10px;
+        """)
+        main_layout.addWidget(title_label)
+
+        # Criar o form_frame
+        form_frame = QFrame()
+        form_frame.setObjectName("formFrame")
+        self.form_layout = QFormLayout(form_frame)
+
+        # Campos de entrada
+        self.produto_codigo = QLineEdit()
+        self.produto_nome = QLineEdit()
+        self.produto_nome.setReadOnly(True)
+        self.quantidade = QLineEdit()
+        self.unidade_medida = QLineEdit()
+        self.unidade_medida.setReadOnly(True)
+
+        self.form_layout.addRow("Código do Produto:", self.produto_codigo)
+        self.form_layout.addRow("Nome do Produto:", self.produto_nome)
+        self.form_layout.addRow("Quantidade:", self.quantidade)
+        self.form_layout.addRow("Unidade de Medida:", self.unidade_medida)
+
+        main_layout.addWidget(form_frame)
+
+        # Lista para exibir os produtos que foram adicionados
+        self.lista_produtos = QListWidget()
+        main_layout.addWidget(self.lista_produtos)
+
+        # Botões
+        button_layout = QHBoxLayout()
+        self.btn_add_produto = QPushButton("Adicionar Produto")
+        self.btn_add_produto.clicked.connect(self.adicionar_produto)
+        button_layout.addWidget(self.btn_add_produto)
+
+        self.btn_remove_produto = QPushButton("Remover Produto Selecionado")
+        self.btn_remove_produto.clicked.connect(self.remover_produto)
+        button_layout.addWidget(self.btn_remove_produto)
+
+        main_layout.addLayout(button_layout)
+
+        self.btn_submit = QPushButton("Submeter Requisição")
+        self.btn_submit.clicked.connect(self.submit)
+        main_layout.addWidget(self.btn_submit, alignment=Qt.AlignCenter)
+
+        # Conectar o campo de código do produto para atualização do nome do produto e unidade de medida
+        self.produto_codigo.textChanged.connect(self.atualizar_produto_info)
+
+        self.setStyleSheet("""
+                    QWidget {
+                        background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, 
+                                                          stop:0 #e0e0e0, stop:1 #bdbdbd);
+                        color: #37474f;
+                        font-family: 'Roboto', sans-serif;
+                    }
+                    QLabel {
+                        background: none;
+                        border: none;
+                        padding: 0;
+                        margin: 0;
+                        font-size: 14px;
+                        font-weight: bold;
+                        color: #37474f;
+                    }
+                    QLineEdit, QComboBox {
+                        background-color: rgba(255, 255, 255, 0.8);
+                        border: 1px solid #78909c;
+                        border-radius: 6px;
+                        padding: 8px;
+                        font-size: 13px;
+                        color: #37474f;
+                    }
+                    QLineEdit:focus, QComboBox:focus {
+                        border: 2px solid #546e7a;
+                    }
+                    QLineEdit:read-only {
+                        background-color: #f0f0f0;
+                        color: #606060;
+                        border: 1px solid #d0d0d0;
+                    }
+                    QPushButton {
+                        background-color: #546e7a;
+                        color: white;
+                        border: none;
+                        padding: 10px 20px;
+                        border-radius: 6px;
+                        font-size: 14px;
+                        font-weight: bold;
+                    }
+                    QPushButton:hover {
+                        background-color: #607d8b;
+                    }
+                    QListWidget {
+                        background-color: rgba(255, 255, 255, 0.8);
+                        border: 1px solid #78909c;
+                        border-radius: 6px;
+                        color: #37474f;
+                        font-size: 13px;
+                        padding: 5px;
+                    }
+                    QListWidget::item:selected {
+                        background-color: #90a4ae;
+                        color: white;
+                    }
+                    QFrame#formFrame {
+                        background: rgba(255, 255, 255, 0.2);
+                        border-radius: 8px;
+                        padding: 10px;
+                    }
+                """)
+
+        # Adicionar sombra ao frame
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(15)
+        shadow.setColor(QColor(0, 0, 0, 40))
+        shadow.setOffset(0, 5)
+        form_frame.setGraphicsEffect(shadow)
+
+    logger = logging.getLogger(__name__)
+
+    def atualizar_produto_info(self):
+        try:
+            codigo = self.produto_codigo.text().strip()
+            self.logger.debug(f"Função atualizar_produto_info chamada com código: {codigo}")
+
+            if not codigo:
+                self.produto_nome.clear()
+                self.unidade_medida.clear()
+                self.logger.debug("Código vazio, limpando campos de nome do produto e unidade de medida")
+                return
+
+            try:
+                id_produto = int(codigo)
+            except ValueError:
+                self.logger.error(f"ID inválido fornecido: {codigo}")
+                self.produto_nome.clear()
+                self.unidade_medida.clear()
+                return
+
+            session = self.get_session()
+
+            try:
+                material = session.query(Material).filter(Material.id == id_produto).first()
+                self.logger.debug(f"Resultado da consulta: {material}")
+
+                if material:
+                    self.logger.debug(f"Produto encontrado: ID={material.id}, Nome={material.nome}, Unidade={material.unidade_medida}")
+                    self.produto_nome.setText(material.nome)
+                    self.unidade_medida.setText(material.unidade_medida)
+                else:
+                    self.logger.debug(f"Produto com ID {id_produto} não encontrado.")
+                    self.produto_nome.setText("Produto não encontrado")
+                    self.unidade_medida.clear()
+            except Exception as e:
+                self.logger.exception(f"Erro ao buscar produto: {e}")
+                self.produto_nome.clear()
+                self.unidade_medida.clear()
+            finally:
+                session.close()
+
+        except Exception as e:
+            self.logger.exception(f"Ocorreu um erro inesperado: {e}")
+            self.produto_nome.clear()
+            self.unidade_medida.clear()
+
+    def definir_nome_produto(self, nome):
+        self.produto_nome.setText(nome)
+        self.produto_nome.repaint()
+        logger.debug(f"Nome do produto definido para: {nome}")
+        logger.debug(f"Texto atual do campo produto_nome: {self.produto_nome.text()}")
+
+    def adicionar_produto(self):
+        try:
+            produto_id = self.produto_codigo.text().strip()
+            produto_nome = self.produto_nome.text().strip()
+            quantidade_text = self.quantidade.text().strip()
+            unidade_medida = self.unidade_medida.text().strip()
+
+            if not produto_id or not produto_nome or not unidade_medida:
+                QMessageBox.warning(self, "Erro", "Preencha os campos de ID, nome do produto e unidade de medida.")
+                return
+
+            try:
+                quantidade = float(quantidade_text)
+            except ValueError:
+                QMessageBox.warning(self, "Erro", "A quantidade deve ser um número válido.")
+                return
+
+            if quantidade <= 0:
+                QMessageBox.warning(self, "Erro", "A quantidade deve ser maior que zero.")
+                return
+
+            # Verificar se o ID do produto existe
+            session = self.get_session()
+            produto = session.query(Material).filter_by(id=produto_id).first()
+            session.close()
+
+            if not produto:
+                QMessageBox.warning(self, "Erro", "ID do produto não encontrado.")
+                return
+
+            # Adicionar ou atualizar o produto na lista de requisições
+            for req in self.requisicoes:
+                if req[0] == produto_id and req[4] == unidade_medida:
+                    req[2] += quantidade
+                    break
+            else:
+                self.requisicoes.append(
+                    [produto_id, produto_nome, quantidade, QDateTime.currentDateTime().toPyDateTime(),
+                     unidade_medida])
+
+            # Atualizar a lista de produtos
+            self.atualizar_lista_produtos()
+
+            # Limpar campos de produto e quantidade para nova entrada
+            self.produto_codigo.clear()
+            self.produto_nome.clear()
+            self.quantidade.clear()
+            self.unidade_medida.clear()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Ocorreu um erro ao adicionar o produto: {e}")
+            logger.exception(f"Erro ao adicionar produto: {e}")
+
+    def atualizar_lista_produtos(self):
+        self.lista_produtos.clear()
+        for produto_codigo, produto_nome, quantidade, data, unidade_medida in self.requisicoes:
+            self.lista_produtos.addItem(
+                f"{produto_codigo} - {produto_nome} - Quantidade: {quantidade} {unidade_medida}")
+
+    def remover_produto(self):
+        try:
+            item_selecionado = self.lista_produtos.currentItem()
+            if not item_selecionado:
+                QMessageBox.warning(self, "Erro", "Selecione um produto para remover.")
+                return
+
+            produto_info = item_selecionado.text().split(" - ")
+            produto_codigo = produto_info[0]
+
+            # Remover da lista de requisições
+            self.requisicoes = [req for req in self.requisicoes if req[0] != produto_codigo]
+
+            # Atualizar a lista de produtos
+            self.atualizar_lista_produtos()
+
+        except Exception as e:
+            QMessageBox.critical(self, "Erro", f"Ocorreu um erro ao remover o produto: {e}")
+
+    def submit(self):
+        logging.info("RequisicaoForm: Iniciando submissão")
+        session = self.get_session()
+        try:
+            ordem_servico = self.ordem_servico_inicial
+            matricula_tecnico = self.matricula_tecnico_inicial
+            nome_tecnico = self.nome_tecnico_inicial
+            nome_usuario_exibicao = self.nome_usuario_inicial
+            username = self.obter_username(nome_usuario_exibicao)
+            local_retirada = self.local_retirada
+
+            logging.debug(f"Dados da requisição: OS={ordem_servico}, Técnico={nome_tecnico}, Usuário={username}")
+
+            if not ordem_servico or not matricula_tecnico or not nome_tecnico or not username or not local_retirada:
+                logging.warning("RequisicaoForm: Campos obrigatórios não preenchidos")
+                QMessageBox.warning(self, "Erro", "Todos os campos devem ser preenchidos.")
+                return
+
+            if not self.requisicoes:
+                logging.warning("RequisicaoForm: Tentativa de submeter requisição sem itens")
+                QMessageBox.warning(self, "Erro", "Adicione pelo menos um item à requisição antes de submeter.")
+                return
+
+            for produto_id, produto_nome, quantidade, data, unidade_medida in self.requisicoes:
+                logging.debug(f"Processando item: ID={produto_id}, Nome={produto_nome}, Qtd={quantidade}")
+
+                requisicao = Requisicao(
+                    ordem_servico=ordem_servico,
+                    produto_id=produto_id,
+                    produto_nome=produto_nome,
+                    matricula_tecnico=matricula_tecnico,
+                    nome_tecnico=nome_tecnico,
+                    quantidade=quantidade,
+                    data_requisicao=data,
+                    nome_usuario=username,
+                    local_retirada=local_retirada,
+                    unidade_medida=unidade_medida
+                )
+                session.add(requisicao)
+
+                estoque = session.query(Estoque).filter_by(material_id=produto_id).with_for_update().first()
+                if estoque:
+                    if estoque.quantidade >= quantidade:
+                        estoque.quantidade -= quantidade
+                        logging.info(f"Estoque atualizado: Produto={produto_id}, Nova Qtd={estoque.quantidade}")
+                    else:
+                        logging.warning(
+                            f"Quantidade insuficiente: Produto={produto_id}, Requisitado={quantidade}, Disponível={estoque.quantidade}")
+                        raise ValueError(f"Quantidade insuficiente para o produto {produto_nome}")
+                else:
+                    logging.error(f"Produto não encontrado no estoque: ID={produto_id}")
+                    raise ValueError(f"Produto {produto_nome} não encontrado no estoque.")
+
+            session.commit()
+            logging.info("RequisicaoForm: Requisição adicionada com sucesso")
+            QMessageBox.information(self, "Sucesso", "Requisição adicionada com sucesso!")
+
+            pdf_file = gerar_pdf(self.requisicoes, ordem_servico, nome_tecnico, local_retirada, nome_usuario_exibicao)
+            if os.path.exists(pdf_file):
+                logging.info(f"PDF gerado com sucesso: {pdf_file}")
+                QMessageBox.information(self, "PDF Gerado", f"PDF gerado com sucesso: {pdf_file}")
+                self.abrir_pdf(pdf_file)
+            else:
+                logging.error("Falha ao gerar PDF")
+                QMessageBox.warning(self, "Aviso", "Não foi possível gerar o PDF.")
+
+            self.limpar_formulario()
+            self.fechar()
+
+        except Exception as e:
+            session.rollback()
+            logging.error(f"Erro ao adicionar requisição: {str(e)}")
+            logging.error(traceback.format_exc())
+            QMessageBox.critical(self, "Erro", f"Erro ao adicionar requisição: {str(e)}")
+        finally:
+            session.close()
+
+    def abrir_pdf(self, pdf_file):
+        if os.name == 'nt':
+            os.startfile(pdf_file)
+        elif os.name == 'posix':
+            subprocess.call(['xdg-open', pdf_file])
+        else:
+            logging.warning("Sistema operacional não suportado para abrir PDF")
+            QMessageBox.warning(self, "Aviso", "Não foi possível abrir o PDF automaticamente.")
+
+    def limpar_formulario(self):
+        self.requisicoes.clear()
+        self.lista_produtos.clear()
+        self.produto_codigo.clear()
+        self.produto_nome.clear()
+        self.quantidade.clear()
+
+    def obter_username(self, nome):
+        session = self.get_session()
+        try:
+            usuario = session.query(Usuario).filter_by(nome=nome).first()
+            if usuario:
+                return usuario.username
+            else:
+                logging.warning(f"Usuário com nome '{nome}' não encontrado. Usando 'admin' como padrão.")
+                return 'admin'
+        finally:
+            session.close()
+
+    def get_session(self):
+        from banco_de_dados import DATABASE_URL
+        engine = create_engine(DATABASE_URL)
+        Session = sessionmaker(bind=engine)
+        return Session()
+
+    def limpar_transacoes_pendentes(self, session):
+        try:
+            session.execute(text("ROLLBACK"))
+            logging.info("Transações pendentes limpas com sucesso")
+        except Exception as e:
+            logging.error(f"Erro ao limpar transações pendentes: {str(e)}")
+
+    def fechar(self):
+        logging.info("RequisicaoForm: Método fechar chamado")
+        # Remover ou ajustar referências a self.requisicao_form
+        if hasattr(self, 'main_app') and hasattr(self.main_app, 'telas_abertas'):
+            try:
+                self.main_app.telas_abertas.remove(self)
+                logging.info("RequisicaoForm removido da lista de telas abertas")
+            except ValueError:
+                logging.warning("RequisicaoForm não encontrado na lista de telas abertas")
+        self.close()
+
+from fpdf import FPDF
+from datetime import datetime
+
+class PDF(FPDF):
+    def header(self):
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, 'Poder Judiciário do Estado do Rio de Janeiro', 0, 1, 'C')
+        self.cell(0, 10, 'Departamento de Segurança Eletrônica e de Telecomunicações', 0, 1, 'C')
+        self.cell(0, 10, 'Setor de Controle de Materiais', 0, 1, 'C')
+        self.ln(10)
+        self.set_font('Arial', 'B', 12)
+        self.cell(0, 10, 'REQUISIÇÃO DE MATERIAIS', 0, 1, 'C')
+
+    def chapter_body(self, requisicoes, ordem_servico, nome_tecnico, local_retirada, nome_usuario):
+        self.set_font('Arial', '', 10)
+
+        # Informações da requisição
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 10, f'Ordem de Serviço: {ordem_servico}', 1, 1, 'L')
+        self.cell(0, 10, f'Técnico Responsável: {nome_tecnico}', 1, 1, 'L')
+        self.cell(0, 10, f'Local de Utilização: {local_retirada}', 1, 1, 'L')
+        self.cell(0, 10, f'Usuário: {nome_usuario}', 1, 1, 'L')
+        self.cell(0, 10, f'Data de Retirada: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}', 1, 1, 'L')
+        self.ln(10)
+
+        # Cabeçalhos da tabela
+        self.set_font('Arial', 'B', 10)
+        self.cell(120, 10, "Material", border=1, align='C')
+        self.cell(30, 10, "Quantidade", border=1, align='C')
+        self.cell(30, 10, "Unid. Medida", border=1, align='C')
+        self.ln()
+
+        # Adicionar cada produto
+        self.set_font('Arial', '', 10)
+        for produto_codigo, produto_nome, quantidade, data, unidade_medida in requisicoes:
+            # Calcular a altura necessária para o nome do produto
+            lines = self.multi_cell(120, 10, produto_nome, border=1, align='L', split_only=True)
+            line_height = 10
+            cell_height = line_height * len(lines)
+
+            # Nome do produto
+            self.multi_cell(120, line_height, produto_nome, border=1, align='L')
+
+            # Mover para a posição correta para a quantidade
+            self.set_xy(self.get_x() + 120, self.get_y() - cell_height)
+
+            # Quantidade
+            self.cell(30, cell_height, str(quantidade), border=1, align='C')
+
+            # Unidade de medida
+            self.cell(30, cell_height, unidade_medida, border=1, align='C')
+
+            self.ln()
+
+        self.ln(10)
+
+    def footer(self):
+        self.set_y(-40  )
+        self.set_font('Arial', 'B', 10)
+        self.cell(0, 10, 'Assinaturas:', 0, 1, 'L')
+        self.cell(0, 10, 'Técnico Responsável: ______________________________________', 0, 1, 'L')
+        self.cell(0, 10, 'Supervisor Técnico:  _______________________________________', 0, 1, 'L')
+        self.cell(0, 10, 'Serviço de Controle de Materiais: ____________________________', 0, 1, 'L')
+
+def gerar_pdf(requisicoes, ordem_servico, nome_tecnico, local_retirada, nome_usuario_exibicao):
+    pdf = PDF()
+    pdf.add_page()
+    pdf.chapter_body(requisicoes, ordem_servico, nome_tecnico, local_retirada, nome_usuario_exibicao)
+
+    diretorio_programa = os.path.dirname(os.path.abspath(__file__))
+    pasta_pdfs = os.path.join(diretorio_programa, "pdfs")
+
+    # Criar a pasta "pdfs" se ela não existir
+    if not os.path.exists(pasta_pdfs):
+        try:
+            os.makedirs(pasta_pdfs)
+        except OSError as e:
+            raise Exception(f'Não foi possível criar a pasta "pdfs": {str(e)}')
+
+    # Gerar o nome do arquivo PDF
+    nome_arquivo = f'requisicao_{ordem_servico}.pdf'
+    caminho_completo = os.path.join(pasta_pdfs, nome_arquivo)
+
+    # Salvar o PDF
+    pdf.output(caminho_completo)
+
+    return caminho_completo
+
+
+def closeEvent(self, event):
+    logger.debug("Janela está sendo fechada")
+    super().closeEvent(event)
+
+def on_requisicao_closed(self):
+    logging.info("DadosIniciaisForm: Requisição fechada")
+    if hasattr(self, 'main_app') and hasattr(self.main_app, 'telas_abertas'):
+        if self.requisicao_form in self.main_app.telas_abertas:
+            try:
+                self.main_app.telas_abertas.remove(self.requisicao_form)
+                logging.info("RequisicaoForm removido da lista de telas abertas")
+            except ValueError:
+                logging.warning("RequisicaoForm não encontrado na lista de telas abertas")
+    self.requisicao_form = None
+
